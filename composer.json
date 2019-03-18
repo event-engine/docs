@@ -1,0 +1,32 @@
+{
+  "name": "event-engine/docs",
+  "description": "Opinionated CQRS / Event Sourcing Framework",
+  "homepage": "https://event-engine.io/",
+  "license": "BSD-3-Clause",
+  "authors": [
+    {
+      "name": "Alexander Miertsch",
+      "email": "contact@prooph.de",
+      "homepage": "http://www.prooph.de"
+    },
+    {
+      "name": "Sandro Keil",
+      "email": "contact@prooph.de",
+      "homepage": "http://prooph-software.com/"
+    }
+  ],
+  "require": {
+    "php": "^7.2",
+    "roave/security-advisories": "dev-master",
+    "bookdown/bookdown": "1.x-dev",
+    "webuni/commonmark-table-extension": "^0.6.1",
+    "webuni/commonmark-attributes-extension": "^0.5.0",
+    "event-engine/php-engine": "dev-master"
+  },
+  "autoload": {
+    "psr-4": {
+      "ProophExample\\": "examples"
+    }
+  },
+  "prefer-stable": true
+}

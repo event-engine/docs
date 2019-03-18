@@ -1,0 +1,12 @@
+{
+  "title": "API",
+  "content": [
+    {"set_up": "set-up/bookdown.json"},
+    {"descriptions": "descriptions/descriptions.md"},
+    {"functional_flavour": "aggregates/functional_flavour.md"},
+    {"immutable_state": "state/immutable_state.md"},
+    {"document_store": "document-store/bookdown.json"},
+    {"projections": "projections/bookdown.json"}
+  ],
+  "tocDepth": 1
+}

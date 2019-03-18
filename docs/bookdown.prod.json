@@ -1,0 +1,25 @@
+{
+    "title": "Event Engine Docs",
+    "content": [
+        {"intro": "intro/bookdown.json"},
+        {"tutorial": "tutorial/bookdown.json"},
+        {"api": "api/bookdown.json"},
+        {"news": "news/bookdown.json"}
+    ],
+    "theme": {
+        "toc": {
+            "collapsibleFromLevel": 1
+        }
+    },
+    "tocDepth": 1,
+    "template": "../template/main.php",
+    "target": "./html",
+    "numbering": false,
+    "rootHref": "https://event-engine.github.io/event-engine/",
+    "extensions": {
+        "commonmark": [
+            "Webuni\\CommonMark\\TableExtension\\TableExtension",
+            "Webuni\\CommonMark\\AttributesExtension\\AttributesExtension"
+        ]
+    }
+}

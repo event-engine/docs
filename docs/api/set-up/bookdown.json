@@ -1,0 +1,9 @@
+{
+  "title": "Set Up",
+  "content": [
+    {"installation": "installation.md"},
+    {"di": "di.md"},
+    {"production_optimization": "production_optimization.md"}
+  ],
+  "tocDepth": 1
+}

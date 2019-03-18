@@ -1,0 +1,13 @@
+nbproject
+._*
+.~lock.*
+.buildpath
+.DS_Store
+.idea
+.php_cs.cache
+.project
+.settings
+vendor
+composer.lock
+docs/html
+!docs/html/.gitkeep
