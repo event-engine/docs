@@ -4,18 +4,18 @@ The second use case of our Building Management system checks users into building
 
 ## Command
 
-Let's add a new command for the use case in `src/Api/Command`:
+Let's add a new command for the use case in `src/Domain/Api/Command`:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\JsonSchema\JsonSchema;
 
 class Command implements EventEngineDescription
 {
@@ -48,13 +48,13 @@ influencing the schema of `user name`:
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use Prooph\EventEngine\JsonSchema\JsonSchema;
-use Prooph\EventEngine\JsonSchema\Type\ArrayType;
-use Prooph\EventEngine\JsonSchema\Type\StringType;
-use Prooph\EventEngine\JsonSchema\Type\TypeRef;
-use Prooph\EventEngine\JsonSchema\Type\UuidType;
+use EventEngine\JsonSchema\JsonSchema;
+use EventEngine\JsonSchema\Type\ArrayType;
+use EventEngine\JsonSchema\Type\StringType;
+use EventEngine\JsonSchema\Type\TypeRef;
+use EventEngine\JsonSchema\Type\UuidType;
 
 class Schema
 {
@@ -74,11 +74,11 @@ class Schema
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\JsonSchema\JsonSchema;
 
 class Event implements EventEngineDescription
 {
@@ -127,11 +127,11 @@ event apply function:
 
 declare(strict_types=1);
 
-namespace App\Model;
+namespace MyService\Domain\Model;
 
-use App\Api\Event;
-use App\Api\Payload;
-use Prooph\EventEngine\Messaging\Message;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Api\Payload;
+use EventEngine\Messaging\Message;
 
 final class Building
 {
@@ -168,17 +168,20 @@ state rather than changing its own state. Here is the implementation of `Buildin
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building;
+namespace MyService\Domain\Model\Building;
 
-use App\Api\Schema;
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
-use Prooph\EventEngine\JsonSchema\Type;
+use MyService\Domain\Api\Schema;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
+use EventEngine\JsonSchema\JsonSchema;
+use EventEngine\JsonSchema\Type;
 
 final class State implements ImmutableRecord
 {
     use ImmutableRecordLogic;
+    
+    public const BUILDING_ID = 'buildingId';
+    public const NAME = 'name';
 
     /**
      * @var string
@@ -248,12 +251,13 @@ Unfortunately, we can only type hint for `array` in PHP, and it is not possible 
 Hopefully this will change in a future version of PHP, but, for now, we have to live with the workaround and give
 `ImmutableRecordLogic` a hint that array items of the `users` property are of type `string`.
 
+{.alert .alert-light}
 *Note: ImmutableRecordLogic derives type information by inspecting return types of getter methods named like their
 corresponding private properties.*
 
 Internally, user names are used as the array index so the same user cannot appear twice in the list. With `Building\State::isUserCheckedIn(string $username): bool`
 we can look up if the given user is currently in the building. `Building\State::users()` on the other hand returns a list
-of user names like defined in the `__schema`. Internal state is used for fast look ups and external schema is used for the
+of user names. Internal state is used for fast look ups and external schema is used for the
 read model. More on that in a minute.
 
 ## Command Processing
@@ -263,11 +267,11 @@ read model. More on that in a minute.
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Model\Building;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
+use MyService\Domain\Model\Building;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
 
 class Aggregate implements EventEngineDescription
 {
@@ -299,10 +303,8 @@ The following command should check in *John* into the *Acme Headquarters*.
 
 ```json
 {
-  "payload": {
-    "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb",
-    "name": "John"
-  }
+  "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb",
+  "name": "John"
 }
 ```
 
@@ -311,9 +313,7 @@ and click on the `Building` return type you'll notice the new property `users`.
 
 ```json
 {
-  "payload": {
-    "name": "Acme"
-  }
+  "name": "Acme"
 }
 ```
 Response
@@ -341,11 +341,11 @@ should enforce the business rule:
 
 declare(strict_types=1);
 
-namespace App\Model;
+namespace MyService\Domain\Model;
 
-use App\Api\Event;
-use App\Api\Payload;
-use Prooph\EventEngine\Messaging\Message;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Api\Payload;
+use EventEngine\Messaging\Message;
 
 final class Building
 {
@@ -386,10 +386,8 @@ Let's try it:
 
 ```json
 {
-  "payload": {
-    "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb",
-    "name": "John"
-  }
+  "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb",
+  "name": "John"
 }
 ```
 
@@ -397,7 +395,7 @@ Response:
 
 ```json
 {
-  "error": {
+  "exception": {
     "message": "User John is already in the building",
     "details": "..."
   }
@@ -405,4 +403,4 @@ Response:
 ```
 
 Throwing an exception is the simplest way to protect invariants. However, with event sourcing we have a different
-(and in most cases) better option. This will be covered in the next part of the tutorial.
+(and in most cases) better option. This will be covered in the next part.

@@ -2,7 +2,7 @@
 
 In part III of the tutorial we successfully implemented the first write model use case: *Add a new building*.
 Connect to the Postgres database and check the event stream table `_4228e4a00331b5d5e751db0481828e22a2c3c8ef`.
-The table should contain the first domain event yielded by the `Building` aggregate and recorded by event machine.
+The table should contain the first domain event yielded by the `Building` aggregate.
 
 no | event_id | event_name | payload | metadata | created_at
 ---|-----------|------------|--------|--------|---------
@@ -15,96 +15,62 @@ naming strategy if you don't like it.*
 The write model only needs an event stream to store information but the read side has a hard time querying it.
 As long as we only have a few events in the stream queries are simple and fast. But over time this table will
 grow and contain many different events. To stay flexible we need to
-separate the write side from the read side. And this is done using so called **projections**.
+separate the write side from the read side. An event sourced system normally uses **projections** to
+create materialized views of the application state and keep them in sync with the write model.
 
-## Registering Projections
+{.alert .alert-warning}
+The problem with projections is [eventual consistency](https://en.wikipedia.org/wiki/Eventual_consistency){: class="alert-link"}.
+A highly distributed system has to deal with eventual consistency. In fact, many modern systems already deal with it in one way or the other, 
+for example if you use Elastic Search or Redis next to your primary database.
 
-Projections in Event Engine make use of the projection feature shipped with *prooph/event-store*.
-An important difference is that by default Event Engine uses **a single long-running PHP process** to manage
-those projections. This way processing order of events is always the same (FIFO).
-A disadvantage is that projections are slower because of the sequential processing.
+{.alert .alert-success}
+However, Event Engine gives you fine grained control of consistency versus performance and availability. All through an easy to use
+high level API. The tutorial only covers the tip of the iceberg. But for now it's enough to know that you have many options.
+Once you've internalized the basics, you can customize the skeleton to meet your needs.
 
-But don't worry: If projections become a bottleneck you can simply switch to plain *prooph/event-store*
-projections and run them in parallel. The recommendation is to switch to that approach only if it is really needed.
-Deploying and coordinating multiple projection processes requires a good (project specific) strategy and tools.
+## Permanent Snapshots
 
-Ok enough theory. Let's get back to the beauty and simplicity of Event Engine. You can use a shortcut if aggregate
-state should be available as a read model. You only need one of the available `EventEngine\Persistence\DocumentStore`
-implementations. By default the skeleton uses *proophsoftware/postgres-document-store* but you can also use
-*proophsoftware/mongo-document-store* or implement your own. See Event Engine docs for details.
+As already discussed in the last tutorial part, Event Engine offers an alternative to async **projections** namely the `MultiModelStore`.
+You can think of it like a projection or a snapshot mechanism that runs within the same transaction as the write model does.
+The result is a snapshot of the aggregate state that is always in sync with its persisted events. 
+Hence, it is safe to rely on the state without worrying about eventual consistency issues.
 
-We only need to register an aggregate projection in `src/Api/Projection`:
+If you look at the `buildings` table of the Postgres DB, you should see one row with two columns `id` and `doc` 
+with id being the buildingId and doc being the JSON representation of the `Building\State`.
 
-```php
-<?php
+{.alert .alert-light}
+Event Engine allows you to start with permanent snapshots and switch to async projections later by adjusting the configuration.
 
-declare(strict_types=1);
-
-namespace App\Api;
-
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\Persistence\Stream;
-
-class Projection implements EventEngineDescription
-{
-    /**
-     * You can register aggregate and custom projections in event machine
-     *
-     * For custom projection you should define a unique projection name using a constant
-     *
-     * const USER_FRIENDS = 'UserFriends';
-     */
-
-    /**
-     * @param EventEngine $eventEngine
-     */
-    public static function describe(EventEngine $eventEngine): void
-    {
-        $eventEngine->watch(Stream::ofWriteModel())
-            ->withAggregateProjection(Aggregate::BUILDING);
-    }
-}
-
-```
-
-That's it. If you look into the Postgres DB you should see a new table called `em_ds_building_projection_0_1_0`.
-And the table should contain one row with two columns `id` and `doc` with id being the buildingId and doc being the
-JSON representation of the `Building\State`.
-
-*Note: If you cannot see the table please check the troubleshooting section of event-machine-skeleton README.*
-
-You can learn more about projections in the docs. For now it is enough to know how to register them. Let's complete the picture
-and query the projection table using Swagger UI.
 
 ## Query, Resolver and Return Type
 
 We already know that Event Engine uses JSON Schema to describe message types and define validation rules.
 For queries we can also register **return types** in Event Engine and those return types will appear in the **Model** section of the Swagger UI.
 
-Registering types is done in `src/Api/Type`:
+Registering types is done in `src/Domain/Api/Type`.
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Model\Building;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
-use Prooph\EventEngine\JsonSchema\Type\ObjectType;
+use EventEngine\JsonSchema\JsonSchema;
+use EventEngine\JsonSchema\Type\ObjectType;
+use MyService\Domain\Model\Building;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
 
 class Type implements EventEngineDescription
 {
-    const HEALTH_CHECK = 'HealthCheck';
+    const BUILDING = 'Building';
 
-    private static function healthCheck(): ObjectType
+    private static function building(): ObjectType
     {
         return JsonSchema::object([
-            'system' => JsonSchema::boolean()
+            Building\State::BUILDING_ID => JsonSchema::uuid(),
+            Building\State::NAME => JsonSchema::string(),
         ]);
     }
 
@@ -113,158 +79,122 @@ class Type implements EventEngineDescription
      */
     public static function describe(EventEngine $eventEngine): void
     {
-        //Register the HealthCheck type returned by @see \App\Api\Query::HEALTH_CHECK
-        $eventEngine->registerType(self::HEALTH_CHECK, self::healthCheck());
-
-        $eventEngine->registerType(Aggregate::BUILDING, Building\State::__schema());
+        $eventEngine->registerType(self::BUILDING, self::building());
     }
 }
 
 ```
 
-As you can see the `HealthCheck` type used by the `HealthCheck` query is already registered here. We simply add
-`Building\State` as the second type and use the aggregate type as name for the building type.
+We describe `Building\State` using JSON Schema and register the type in Event Engine.
 
-*Note: Types are described using JSON Schema. Building\State implements ImmutableRecord and therefore provides the method
-ImmutableRecord::__schema (provided by ImmutableRecordLogic trait) which returns a JSON Schema object.*
-
+{.alert .alert-warning}
 *Note: Using aggregate state as return type for queries couples the write model with the read model.
 However, you can replace the return type definition at any time. So we can use the short cut
 in an early stage and switch to a decoupled version later.*
 
-Next step is to register the query in `src/Api/Query`:
+Next step is to register the query in `src/Domain/Api/Query`:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Infrastructure\System\HealthCheckResolver;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\JsonSchema\JsonSchema;
 
 class Query implements EventEngineDescription
 {
-    /**
-     * Default Query, used to perform health checks using messagebox endpoint
-     */
-    const HEALTH_CHECK = 'HealthCheck';
-
     const BUILDING = 'Building';
 
     public static function describe(EventEngine $eventEngine): void
     {
-        //Default query: can be used to check if service is up and running
-        $eventEngine->registerQuery(self::HEALTH_CHECK) //<-- Payload schema is optional for queries
-            ->resolveWith(HealthCheckResolver::class) //<-- Service id (usually FQCN) to get resolver from DI container
-            ->setReturnType(Schema::healthCheck()); //<-- Type returned by resolver
-
         $eventEngine->registerQuery(self::BUILDING, JsonSchema::object([
             'buildingId' => JsonSchema::uuid(),
         ]))
             ->resolveWith(/* ??? */)
-            ->setReturnType(JsonSchema::typeRef(Aggregate::BUILDING));
+            ->setReturnType(JsonSchema::typeRef(Type::BUILDING));
     }
 }
 
 ```
 
-Queries are named like the "things" they return. This results in a clean and easy to use messagebox schema.
+Queries are named like the "things" they return. This results in a clean and easy to use message box schema.
 
+{.alert .alert-light}
 Please note that the return type is a reference: `JsonSchema::typeRef()`.
 
-Last but not least, the query needs to be handled by a so-called finder (prooph term).
-
-When the query is sent to the messagebox endpoint it is translated into a
-query message that is passed on to prooph's query bus. The query message is validated against the schema
-defined during query registration `$eventEngine->registerQuery(self::BUILDING, JsonSchema::object(...))`.
-
-Our first query has a required argument, `buildingId`, which should be a valid `Uuid`.
-An invalid uuid will fail when the query is parsed into a Event Engine message.
-
-Long story short, we need a finder, as described in the [prooph docs](https://github.com/prooph/service-bus/blob/master/docs/message_bus.md#invoke-handler):
-
-> QueryBus: much the same as the command bus but the message handler is invoked with the query message and a React\Promise\Deferred that needs to be resolved by the message handler aka finder.
-
-Create a new class called `BuildingFinder` in a new directory `Finder` in `src/Infrastructure`.
+Last but not least, the query needs to be handled by a so-called resolver.
+Create a new class called `BuildingResolver` in a new directory `Resolver` in `src/Domain`.
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Finder;
+namespace MyService\Domain\Resolver;
 
-use Prooph\EventEngine\Messaging\Message;
-use React\Promise\Deferred;
+use EventEngine\Messaging\Message;
+use EventEngine\Querying\Resolver;
 
-final class BuildingFinder
+final class BuildingResolver implements Resolver
 {
-    public function __invoke(Message $buildingQuery, Deferred $deferred): void
+    /**
+     * @param Message $query
+     * @return mixed
+     */
+    public function resolve(Message $query)
     {
-        //@TODO: resolve $deferred
+        // TODO: Implement resolve() method.
     }
 }
 
 ```
 
-This is an **invokable finder**, as described in the prooph docs. It receives the query message as the first argument
-and a `React\Promise\Deferred` as the second argument.
-prooph's query bus can be used in an async, non-blocking I/O runtime as well as a normal, blocking runtime,
-so the finder must resolve the deferred object instead of returning a result.
-We work with the `Promise` and `Deferred` objects provided by the `ReactPHP` library (unfortunately, we have no
-PSR for promises yet). Event Engine takes care of resolving promises returned by prooph's query bus.
+The `BuildingResolver` implements `EventEngine\Querying\Resolver`. It receives the query message as the only argument.
 
-{.alert .alert-info}
-Finders or resolvers are async by default, due to prooph's QueryBus used under the hood. However, a finder can implement the marker interface
-`Prooph\EventEngine\Querying\SyncResolver` to change method signature and return a result instead of resolving a deferred object. Check the docs for details.
-
-The finder needs to query the read model. While looking at projections we briefly discussed
-Event Engine's `DocumentStore` API. The finder can use it to access documents organized in collections. Let's see
+Task of the resolver is to query the read model. While looking at snapshots and projections we briefly discussed
+Event Engine's `DocumentStore` API. The resolver can use it to access documents organized in collections. Let's see
 how that works.
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Finder;
+namespace MyService\Domain\Resolver;
 
-use Prooph\EventEngine\Messaging\Message;
-use Prooph\EventEngine\Persistence\DocumentStore;
-use React\Promise\Deferred;
+use EventEngine\DocumentStore\DocumentStore;
+use EventEngine\Messaging\Message;
+use EventEngine\Querying\Resolver;
 
-final class BuildingFinder
+final class BuildingResolver implements Resolver
 {
     /**
      * @var DocumentStore
      */
     private $documentStore;
 
-    /**
-     * @var string
-     */
-    private $collectionName;
-
-    public function __construct(string $collectionName, DocumentStore $documentStore)
+    public function __construct(DocumentStore $documentStore)
     {
-        $this->collectionName = $collectionName;
         $this->documentStore = $documentStore;
     }
 
-    public function __invoke(Message $buildingQuery, Deferred $deferred): void
+    /**
+     * @param Message $query
+     * @return array
+     */
+    public function resolve(Message $query): array 
     {
-        $buildingId = $buildingQuery->get('buildingId');
+        $buildingId = $query->get('buildingId');
 
-        $buildingDoc = $this->documentStore->getDoc($this->collectionName, $buildingId);
+        $buildingDoc = $this->documentStore->getDoc('buildings', $buildingId);
 
         if(!$buildingDoc) {
-            $deferred->reject(new \RuntimeException('Building not found', 404));
-            return;
+            throw new \RuntimeException("Building not found", 404);
         }
 
-        $deferred->resolve($buildingDoc);
+        return $buildingDoc['state'];
     }
 }
 
@@ -272,101 +202,135 @@ final class BuildingFinder
 
 The implementation is self explanatory, but a few notes should be made.
 
-Every Event Engine message has a `get` and a `getOrDefault`
+Each Event Engine message has a `get` and a `getOrDefault`
 method which are both short cuts to access keys of the message payload. The difference between the two is obvious.
 If the payload key is NOT set and you use `get` the message will throw an exception. If the payload key is NOT set and you use
 `getOrDefault` you get back the default passed as the second argument.
 
-The second note is about the *collection name*. It is injected at runtime rather than defined as a hardcoded string or
-constant. Do you remember the read model table name `em_ds_building_projection_0_1_0`?
-First of all, this is also a default naming strategy and can be changed. However, the interesting part here is the version
-number at the end of the name. This is the **application version** which you can pass to `EventEngine::boostrap()` (see docs for details).
-When deploying a new application version it is possible to rebuild all projection tables using the new version while
-the old projection tables remain active until load balancers are switched (Blue Green Deployment).
+The second note is about `$buildingDoc['state']`. The document store returns raw data stored as a document.
+And because we use the `MultiModeStore` to persist aggregate state, it is stored as a snapshot of the form:
 
-Finally, we need to configure Event Engine's DI container to inject the dependencies into our new finder.
+```json
+{
+  "id": "<aggregate_id>",
+  "doc": {
+    "state": {"state":  {"of":  "the aggregate"}},
+    "version": 1
+  }
+}
+```
+We don't want to expose internal storage format to public consumers. Therefor, the resolver only returns 
+what is stored in the `state` property of the document. 
 
-## PSR-11 Container
+{.alert .alert-light}
+We could also use a DTO instead of returning an array to add more type safety to the resolver. The DTO should either has a `toArray` method
+or implement `\JsonSerializable` so that the message box can turn it into a JSON response. By the way, the message box is part of
+the skeleton. Feel free to adjust it, if you want to use a serializer library.
 
-Event Engine can use any PSR-11 compatible container. By default it uses a very simple implementation included
-in the Event Engine package. The DI container is inspired by `bitExpert/disco` but removes the need for annotations.
-Dependencies are managed in a single `ServiceFactory` class which is located in `src/Service`.
+Finally, we need to configure Event Engine's DI container to inject the dependencies into our new resolver.
 
-Just add the following method to the `ServiceFactory`:
+## Discolight PSR-11 Container
+
+Event Engine can use any PSR-11 compatible container. By default it uses a very simple implementation called `Discolight` included
+in the Event Engine package family. The DI container is inspired by `bitExpert/disco` but removes the need for annotations.
+Dependencies are aggregated in a single `ServiceFactory` class which is located directly in `src`.
+
+The `ServiceFactory` pulls dependencies from modules. The skeleton organizes modules by system layers:
+
+- **Domain**: contains everything related to the business logic
+- **Http**: contains the message box and other PSR-15 middleware
+- **Persistence**: contains classes and definitions related to storage
+- **System**: contains things like a logger and the default HealthCheckResolver
+
+Each module has a `<Module>Services` trait, which is loaded into the `ServiceFactory`. It's an easy way to group dependencies using
+plain PHP. No configuration files, no magic and IDE support without extra plugins.
+
+{.alert .alert-light}
+When working with Event Engine you'll recognize that you don't need a heavy DI container. You have a single message box instead of a growing 
+number of controllers. You don't have heavy application services, but small single purpose ones like the resolver we've just added.
+You don't need repositories for entities, because Event Engine manages persistence based on aggregate logic and descriptions.
+In fact, the entire CQRS / ES application architecture ensures that you use small building blocks and coordinate them by using messages.
+
+To set up the `BuildingResolver` adjust `src/Domain/DomainServices.php`:
 
 ```php
 <?php
+declare(strict_types=1);
 
-namespace App\Service;
+namespace MyService\Domain;
 
-//New use statements
-use App\Api\Aggregate;
-use App\Infrastructure\Finder\BuildingFinder;
-use Prooph\EventEngine\Projecting\AggregateProjector;
-//Other use statements
-use ...
+use MyService\Domain\Api\Aggregate;
+use MyService\Domain\Api\Command;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Api\Listener;
+use MyService\Domain\Api\Projection;
+use MyService\Domain\Api\Query;
+use MyService\Domain\Api\Type;
+use MyService\Domain\Resolver\BuildingResolver;
 
-final class ServiceFactory
+trait DomainServices
 {
-    /* ... */
-
-    public function setContainer(ContainerInterface $container): void
+    public function buildingResolver(): BuildingResolver
     {
-        $this->container = $container;
-    }
-
-    //Finders
-    public function buildingFinder(): BuildingFinder //<-- Return type is used as service id
-    {
-        //Service is treated as a singleton, DI returns the same instance on subsequent gets
-        return $this->makeSingleton(BuildingFinder::class /*<-- again service id */, function () {
-            return new BuildingFinder(
-                //We can use the AggregateProjector to generate correct collection name
-                AggregateProjector::aggregateCollectionName(
-                    $this->eventEngine()->appVersion(), //<-- Inside a closure we still have access to other methods
-                    Aggregate::BUILDING                  //    of the ServiceFactory, like the getter for Event Engine itself
-                ),
-                $this->documentStore()                   //    or the document store
-            );
+        return $this->makeSingleton(BuildingResolver::class, function () {
+            return new BuildingResolver($this->documentStore());
         });
     }
-    /* ... */
+    
+    public function domainDescriptions(): array
+    {
+        return [
+            Type::class,
+            Command::class,
+            Event::class,
+            Query::class,
+            Aggregate::class,
+            Projection::class,
+            Listener::class,
+        ];
+    }
 }
 
 ```
-And use `BuildingFinder::class` as the finder service id when registering the query in `src/Api/Query`:
+
+{.alert .alert-light}
+A few notes about the trait. It uses methods defined in other `<Module>Services` traits or in the main `ServiceFactory`.
+PHPStorm can suggest and resolve methods, because all traits are combined in the ServiceFactory. This allows you to quickly navigate
+the dependency tree. Something that is really painful when using most other DI container solutions. 
+
+{.alert .alert-light}
+`$this->makeSingleton()` is a helper method that turns the requested service in a singleton. All subsequent calls to `buildingResolver()` will
+return the same instance instead of a new one. Return services directly if the container should provide a new instance on each `$container->get(Service::class)` call.
+
+{.alert .alert-light}
+`domainDescriptions()` is a method required by the main `ServiceFactory`. It returns all Event Engine descriptions of the module so that
+they are registered in Event Engine.
+
+Finally, tell Event Engine that the `BuildingResolver` is responsible for the `Building` query:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Infrastructure\Finder\BuildingFinder; //<-- New use statement
-use App\Infrastructure\System\HealthCheckResolver;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\JsonSchema\JsonSchema;
+use MyService\Domain\Resolver\BuildingResolver;
 
 class Query implements EventEngineDescription
 {
-    /**
-     * Default Query, used to perform health checks using messagebox endpoint
-     */
-    const HEALTH_CHECK = 'HealthCheck';
-
     const BUILDING = 'Building';
 
     public static function describe(EventEngine $eventEngine): void
     {
-        /* ... */
-
         $eventEngine->registerQuery(self::BUILDING, JsonSchema::object([
             'buildingId' => JsonSchema::uuid(),
         ]))
-            ->resolveWith(BuildingFinder::class) //<-- Finder service id
-            ->setReturnType(JsonSchema::typeRef(Aggregate::BUILDING));
+            ->resolveWith(BuildingResolver::class)
+            ->setReturnType(JsonSchema::typeRef(Type::BUILDING));
     }
 }
 
@@ -377,9 +341,7 @@ If we send that query with the `buildingId` used in `AddBuilding`:
 
 ```json
 {
-  "payload": {
-    "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb"
-  }
+  "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb"
 }
 ```
 We get back:
@@ -395,40 +357,36 @@ Awesome, isn't it?
 
 ## Optional Query Arguments
 
-Finders can also handle multiple queries. This is useful when multiple queries can be resolved by accessing the same
-read model collection. A second query for the `BuildingFinder` would be a query that lists all buildings or a subset filtered
+Resolvers can also handle multiple queries. This is useful when different queries can be resolved by accessing the same
+read model collection. A second query for the `BuildingResolver` would be one that lists all buildings or a subset filtered
 by name.
 
-Add the query to `src/Api/Query`:
+Add the query to `src/Domain/Api/Query`:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Infrastructure\Finder\BuildingFinder;
-use App\Infrastructure\System\HealthCheckResolver;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\JsonSchema\JsonSchema;
+use MyService\Domain\Resolver\BuildingResolver;
 
 class Query implements EventEngineDescription
 {
-    const HEALTH_CHECK = 'HealthCheck';
     const BUILDING = 'Building';
     const BUILDINGS = 'Buildings'; //<-- New query, note the plural
 
     public static function describe(EventEngine $eventEngine): void
     {
-        /* ... */
-
         $eventEngine->registerQuery(self::BUILDING, JsonSchema::object([
             'buildingId' => JsonSchema::uuid(),
         ]))
-            ->resolveWith(BuildingFinder::class)
-            ->setReturnType(JsonSchema::typeRef(Aggregate::BUILDING));
+            ->resolveWith(BuildingResolver::class)
+            ->setReturnType(JsonSchema::typeRef(Type::BUILDING));
 
         //New query
         $eventEngine->registerQuery(
@@ -439,106 +397,113 @@ class Query implements EventEngineDescription
                 ['name' => JsonSchema::nullOr(JsonSchema::string()->withMinLength(1))]
             )
         )
-            //Resolve query with same finder ...
-            ->resolveWith(BuildingFinder::class)
+            //Resolve query with same resolver ...
+            ->resolveWith(BuildingResolver::class)
             //... but return an array of Building type
             ->setReturnType(JsonSchema::array(
-                JsonSchema::typeRef(Aggregate::BUILDING)
+                JsonSchema::typeRef(Type::BUILDING)
             ));
     }
 }
 
 ```
 
-The refactored `BuildingFinder` looks like this:
+The refactored `BuildingResolver` looks like this:
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Finder;
+namespace MyService\Domain\Resolver;
 
-use App\Api\Query;
-use Prooph\EventEngine\Messaging\Message;
-use Prooph\EventEngine\Persistence\DocumentStore;
-use React\Promise\Deferred;
+use EventEngine\DocumentStore\DocumentStore;
+use EventEngine\DocumentStore\Filter\AnyFilter;
+use EventEngine\DocumentStore\Filter\LikeFilter;
+use EventEngine\Messaging\Message;
+use EventEngine\Querying\Resolver;
+use MyService\Domain\Api\Query;
 
-final class BuildingFinder
+final class BuildingResolver implements Resolver
 {
     /**
      * @var DocumentStore
      */
     private $documentStore;
 
-    /**
-     * @var string
-     */
-    private $collectionName;
-
-    public function __construct(string $collectionName, DocumentStore $documentStore)
+    public function __construct(DocumentStore $documentStore)
     {
-        $this->collectionName = $collectionName;
         $this->documentStore = $documentStore;
     }
 
-    public function __invoke(Message $buildingQuery, Deferred $deferred): void
+    /**
+     * @param Message $query
+     * @return array
+     */
+    public function resolve(Message $query): array
     {
-        switch ($buildingQuery->messageName()) {
+        switch ($query->messageName()) {
             case Query::BUILDING:
-                $this->resolveBuilding($deferred, $buildingQuery->get('buildingId'));
-                break;
+                return $this->resolveBuilding($query->get('buildingId'));
             case Query::BUILDINGS:
-                $this->resolveBuildings($deferred, $buildingQuery->getOrDefault('name', null));
-                break;
+                return $this->resolveBuildings($query->getOrDefault('name', null));
         }
     }
 
-    private function resolveBuilding(Deferred $deferred, string $buildingId): void
+    private function resolveBuilding(string $buildingId): array
     {
-        $buildingDoc = $this->documentStore->getDoc($this->collectionName, $buildingId);
+        $buildingDoc = $this->documentStore->getDoc('buildings', $buildingId);
 
         if(!$buildingDoc) {
-            $deferred->reject(new \RuntimeException('Building not found', 404));
-            return;
+            throw new \RuntimeException("Building not found", 404);
         }
 
-        $deferred->resolve($buildingDoc);
+        return $buildingDoc['state'];
     }
 
-    private function resolveBuildings(Deferred $deferred, string $nameFilter = null): array
+    private function resolveBuildings(string $nameFilter = null): array
     {
         $filter = $nameFilter?
-            new DocumentStore\Filter\LikeFilter('name', "%$nameFilter%")
-            : new DocumentStore\Filter\AnyFilter();
+            new LikeFilter('state.name', "%$nameFilter%")
+            : new AnyFilter();
 
-        $cursor = $this->documentStore->filterDocs($this->collectionName, $filter);
+        $cursor = $this->documentStore->filterDocs('buildings', $filter);
 
-        $deferred->resolve(iterator_to_array($cursor));
+        $buildings = [];
+
+        foreach ($cursor as $doc) {
+            $buildings[] = $doc['state'];
+        }
+
+        return $buildings;
     }
 }
 
 ```
 
-`BuildingFinder` can resolve both queries by mapping the query name to an internal `resolve*` method.
-For the new `Buildings` query the finder makes use of `DocumentStore\Filter`s. The `LikeFilter` works the same way as
+`BuildingResolver` can resolve both queries by mapping the query name to an internal `resolve*` method.
+For the new `Buildings` query the resolver makes use of `DocumentStore\Filter`s. The `LikeFilter` works the same way as
 a SQL like expression using `%` as a placeholder. `AnyFilter` matches any documents in the collection.
-There are many more filters available. Read more about filters in the docs.
+There are many more filters available. Read more about filters in the docs (@TODO: link docs).
 
 You can test the new query using Swagger. 
 This is an example query with a name filter:
 
 ```json
 {
-  "payload": {
-    "name": "Acme"
-  }
+  "name": "Acme"
 }
 ```
-You can add some more buildings and play with the queries. Try to exchange the `LikeFilter` with a `EqFilter` for example.
+Add some more buildings and play with the queries. Try to exchange the `LikeFilter` with an `EqFilter` for example.
 Or see what happens if you pass an empty string as name filter.
 
-In part VI we got back to the write model and learned how to work with process managers. But before we continue,
-we should clean up our code a bit. Part V tells you what we can improve.
+{.alert .alert-info}
+Since aggregate state is stored as a snapshot, we need to keep in mind that **state** is the root property. Nested keys can be
+referenced using **dot notation** (f.e. "state.name"). If you don't use the MultiModelStore and create your own read models, 
+then you don't need that snapshot format. But remember: without the MultiModelStore you definitely need to deal 
+with eventual consistency whenever reading data from a read model. 
+
+In part VI we get back to the write model and learn how to work with process managers. But before we continue,
+we should clean up our code a bit. Part V describes what we can improve.
 
 
 

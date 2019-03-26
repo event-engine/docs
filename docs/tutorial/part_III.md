@@ -27,10 +27,10 @@ Let's add such a function for our `BuildingAdded` domain event.
 
 declare(strict_types=1);
 
-namespace App\Model;
+namespace MyService\Domain\Model;
 
-use App\Api\Event;
-use Prooph\EventEngine\Messaging\Message;
+use MyService\Domain\Api\Event;
+use EventEngine\Messaging\Message;
 
 final class Building
 {
@@ -53,20 +53,23 @@ But what does the `State` object look like? Well, you can use whatever you want.
 implementation (see docs for details). However, Event Engine ships with a default implementation of an `ImmutableRecord`.
 We use that implementation in the tutorial, but it is your choice if you want to use it in your application, too.
 
-Create a `State` class in `src/Model/Building` (new directory):
+Create a `State` class in `src/Domain/Model/Building` (new directory):
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building;
+namespace MyService\Domain\Model\Building;
 
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class State implements ImmutableRecord
 {
     use ImmutableRecordLogic;
+    
+    public const BUILDING_ID = 'buildingId';
+    public const NAME = 'name';
 
     /**
      * @var string
@@ -96,6 +99,7 @@ final class State implements ImmutableRecord
 }
 
 ```
+{.alert .alert-light}
 *Note: You can use PHPStorm to generate the Getter-Methods. You only have to write the private properties and add the doc blocks with @var type hints.
 Then use PHPStorm's ability to add the Getter-Methods (ALT+EINF). By default PHPStorm sets a `get*` prefix for each method. However, immutable records don't
 have setter methods and don't work with the `get*` prefix. Just change the template in your PHPStorm config: Settings -> Editor -> File and Code Templates -> PHP Getter Method to:*
@@ -120,10 +124,10 @@ Now we can return a new `Building\State` from `Building::whenBuilidngAdded()`.
 
 declare(strict_types=1);
 
-namespace App\Model;
+namespace MyService\Domain\Model;
 
-use App\Api\Event;
-use Prooph\EventEngine\Messaging\Message;
+use MyService\Domain\Api\Event;
+use EventEngine\Messaging\Message;
 
 final class Building
 {
@@ -141,18 +145,18 @@ final class Building
 ```
 
 Finally, we have to tell Event Engine about that apply function to complete the `AddBuilding` use case description.
-In `src/Api/Aggregate`:
+In `src/Domain/Api/Aggregate`:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Model\Building;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
+use MyService\Domain\Model\Building;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
 
 class Aggregate implements EventEngineDescription
 {
@@ -179,17 +183,149 @@ We're done with the write model for the first use case. If you send the `AddBuil
 
 ```json
 {
-  "payload": {
-    "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb",
-    "name": "Acme Headquarters"
-  }
+  "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb",
+  "name": "Acme Headquarters"
 }
 ```
 
-... you should receive a `[202] command accepted` response
+... you should receive a new error.
 
+```json
+{
+  "exception": { 
+      "message": "SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation \"building_projection_0_1_0\" does not exist ...",
+      "details": "..."
+    }
+}
+```
+
+{.alert .alert-light}
+Sorry for that many errors. But learning by mistake is the best way to learn!
+
+## MultiModelStore
+
+The skeleton comes preconfigured with a so called `MultiModelStore`. Such a store is capable of storing events and state of an aggregate in one transaction. 
+
+{.alert .alert-info}
+Using a **MultiModelStore** reduces the problem of [eventual consistency](https://en.wikipedia.org/wiki/Eventual_consistency){: class="alert-link"}, which many
+see as a main drawback of Event Sourcing. This hybrid approach has its own downsides, discussed in more details in the docs (@TODO: link docs).
+However, in Event Engine you can switch between "**state only**", "**events and state**" and "**events only**" mode on a per aggregate basis.
+That's really powerful. You can choose the right storage strategy for each scenario and continuously fine tune the system.
+
+The error is caused by a missing state table for our `Building` aggregate. At the beginning of the tutorial we've only set up the **write model event stream**.
+By default all recorded events of all aggregates are stored in that stream table. A similar table for aggregate state does not exist. We have to create one for each aggregate.
+
+### Buildings Collection
+
+Add a new php file called `create_collections.php` next to the `create_event_stream.php` file in the `scripts` folder:
+
+```php
+<?php
+declare(strict_types=1);
+
+require_once 'vendor/autoload.php';
+
+$container = require 'config/container.php';
+
+/** @var \EventEngine\DocumentStore\DocumentStore $documentStore */
+$documentStore = $container->get(EventEngine\DocumentStore\DocumentStore::class);
+
+if(!$documentStore->hasCollection('buildings')) {
+    echo "Creating collection buildings.\n";
+    $documentStore->addCollection('buildings');
+}
+
+echo "done.\n";
+
+```
+
+Run the script with:
+
+```bash
+docker-compose run php php scripts/create_collections.php
+```
+
+If you look at the Postgres database, you'll see a new `buildings` table. 
+
+{.alert .alert-light}
+Ok, what did we do? 
+
+The `MultiModelStore` is composed of an `EventStore` and a `DocumentStore`. 
+Both use the same underlying database which is Postgres in our case and they share the same `\PDO` connection.
+
+`src/Persistence/PersistenceServices.php` contains the actual set up logic:
+
+```php
+public function multiModelStore(): MultiModelStore
+{
+    return $this->makeSingleton(MultiModelStore::class, function () {
+        return new ComposedMultiModelStore(
+            $this->transactionalConnection(),
+            $this->eventEngineEventStore(),
+            $this->documentStore()
+        );
+    });
+}
+```
+
+This allows the `MultiModelStore` to control the transaction for both. The `DocumentStore` interface is inspired by MongoDB's API.
+Postgres can be used as a document store due to **JSON** support. You don't need to worry about the low level JSON API but can instead use
+the high level abstraction provided by Event Engine. 
+
+### Aggregate Storage Settings
+
+We've just created a new table in Postgres called `buildings` using the high level `DocumentStore` abstraction provided by Event Engine, 
+but the error complains about a missing table called `building_projection_0_1_0`.
+Event Engine applies a default naming strategy for aggregate state collections (in case of Postgres collection equals table) if not specified otherwise.
+
+We can tell Event Engine to use the `buildings` collection instead by adding a hint to the aggregate description in `src/Domain/Api/Aggregate.php`:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace MyService\Domain\Api;
+
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use MyService\Domain\Model\Building;
+
+class Aggregate implements EventEngineDescription
+{
+    const BUILDING = 'Building';
+
+    /**
+     * @param EventEngine $eventEngine
+     */
+    public static function describe(EventEngine $eventEngine): void
+    {
+        $eventEngine->process(Command::ADD_BUILDING)
+            ->withNew(self::BUILDING)
+            ->identifiedBy('buildingId')
+            ->handle([Building::class, 'add'])
+            ->recordThat(Event::BUILDING_ADDED)
+            ->apply([Building::class, 'whenBuildingAdded'])
+            ->storeStateIn('buildings'); //Use buildings collection for aggregate state
+    }
+}
+
+```
+
+Send the command again:
+
+```json
+{
+  "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb",
+  "name": "Acme Headquarters"
+}
+```
+
+This time the command goes through. If everything is fine the message box returns a `202 command accepted` response.
+ 
+{.alert .alert-info} 
 Event Engine emphasizes a CQRS and Event Sourcing architecture. For commands this means that no data is returned.
-The write model has received and processed the command `AddBuilding` successfully but we don't know what the new
+The write model has received and processed the command **AddBuilding** successfully but we don't know what the new
 application state looks like. We will use a query, which is the third message type, to get this data.
-Head over to tutorial part IV to learn more about queries and application state management using projections.
+Head over to tutorial part IV to learn more about queries and application state management using the **MultiModelStore**.
 

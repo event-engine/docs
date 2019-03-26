@@ -62,7 +62,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Flavour;
 
-use Prooph\EventEngine\Runtime\Oop\Port;
+use EventEngine\Runtime\Oop\Port;
 
 final class EventSourcedAggregatePort implements Port
 {
@@ -150,7 +150,7 @@ Let's create an interface for the port to rely on:
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Base;
+namespace MyService\Domain\Model\Base;
 
 interface AggregateRoot
 {
@@ -172,7 +172,7 @@ We don't have a `DomainEvent` type yet. Add it next to the `AggregateRoot` inter
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Base;
+namespace MyService\Domain\Model\Base;
 
 interface DomainEvent
 {
@@ -191,8 +191,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Flavour;
 
-use App\Model\Base\AggregateRoot;
-use Prooph\EventEngine\Runtime\Oop\Port;
+use MyService\Domain\Model\Base\AggregateRoot;
+use EventEngine\Runtime\Oop\Port;
 
 final class EventSourcedAggregatePort implements Port
 {
@@ -253,7 +253,7 @@ logic that we can later use in aggregates.
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Base;
+namespace MyService\Domain\Model\Base;
 
 trait EventSourced
 {
@@ -347,7 +347,7 @@ use `__construct` in aggregate roots but rather use named constructors. This rul
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Base;
+namespace MyService\Domain\Model\Base;
 
 interface AggregateRoot
 {
@@ -373,8 +373,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Flavour;
 
-use App\Model\Base\AggregateRoot;
-use Prooph\EventEngine\Runtime\Oop\Port;
+use MyService\Domain\Model\Base\AggregateRoot;
+use EventEngine\Runtime\Oop\Port;
 
 final class EventSourcedAggregatePort implements Port
 {
@@ -419,18 +419,18 @@ object is less work than you might expect:
 <?php
 declare(strict_types=1);
 
-namespace App\Model;
+namespace MyService\Domain\Model;
 
-use App\Model\Base\AggregateRoot;
-use App\Model\Base\EventSourced;
-use App\Model\Building\Command\AddBuilding;
-use App\Model\Building\Command\CheckInUser;
-use App\Model\Building\Command\CheckOutUser;
-use App\Model\Building\Event\BuildingAdded;
-use App\Model\Building\Event\DoubleCheckInDetected;
-use App\Model\Building\Event\DoubleCheckOutDetected;
-use App\Model\Building\Event\UserCheckedIn;
-use App\Model\Building\Event\UserCheckedOut;
+use MyService\Domain\Model\Base\AggregateRoot;
+use MyService\Domain\Model\Base\EventSourced;
+use MyService\Domain\Model\Building\Command\AddBuilding;
+use MyService\Domain\Model\Building\Command\CheckInUser;
+use MyService\Domain\Model\Building\Command\CheckOutUser;
+use MyService\Domain\Model\Building\Event\BuildingAdded;
+use MyService\Domain\Model\Building\Event\DoubleCheckInDetected;
+use MyService\Domain\Model\Building\Event\DoubleCheckOutDetected;
+use MyService\Domain\Model\Building\Event\UserCheckedIn;
+use MyService\Domain\Model\Building\Event\UserCheckedOut;
 
 final class Building implements AggregateRoot
 {
@@ -499,7 +499,7 @@ final class Building implements AggregateRoot
 
 Here are the refactoring steps:
 
-- All events need to implement `App\Model\Base\DomainEvent`
+- All events need to implement `MyService\Domain\Model\Base\DomainEvent`
 - `Building` implements `AggregateRoot`
 - `Building` uses `EventSourced`
 - `Building` stores `Building\State` internally in a `state` property
@@ -526,8 +526,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Flavour;
 
-use App\Model\Base\AggregateRoot;
-use Prooph\EventEngine\Runtime\Oop\Port;
+use MyService\Domain\Model\Base\AggregateRoot;
+use EventEngine\Runtime\Oop\Port;
 
 final class EventSourcedAggregatePort implements Port
 {
@@ -556,11 +556,11 @@ The `callable $aggregateFactory` passed to the port, is still the one we've defi
 <?php
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Model\Building;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
+use MyService\Domain\Model\Building;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
 
 class Aggregate implements EventEngineDescription
 {
@@ -620,8 +620,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Flavour;
 
-use App\Model\Base\AggregateRoot;
-use Prooph\EventEngine\Runtime\Oop\Port;
+use MyService\Domain\Model\Base\AggregateRoot;
+use EventEngine\Runtime\Oop\Port;
 
 final class EventSourcedAggregatePort implements Port
 {
@@ -653,12 +653,12 @@ because they are instance methods now. To get around the issue, we can replace t
 <?php
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Model\Building;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\Runtime\Oop\FlavourHint;
+use MyService\Domain\Model\Building;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\Runtime\Oop\FlavourHint;
 
 class Aggregate implements EventEngineDescription
 {
@@ -715,12 +715,12 @@ Let's check the Projection Description:
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
 use App\Infrastructure\Projector\UserBuildingList;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\Persistence\Stream;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\Persistence\Stream;
 
 class Projection implements EventEngineDescription
 {
@@ -764,7 +764,7 @@ A simple `toArray()` on the aggregate is sufficient. We add it to the `Aggregate
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Base;
+namespace MyService\Domain\Model\Base;
 
 interface AggregateRoot
 {
@@ -788,18 +788,18 @@ interface AggregateRoot
 <?php
 declare(strict_types=1);
 
-namespace App\Model;
+namespace MyService\Domain\Model;
 
-use App\Model\Base\AggregateRoot;
-use App\Model\Base\EventSourced;
-use App\Model\Building\Command\AddBuilding;
-use App\Model\Building\Command\CheckInUser;
-use App\Model\Building\Command\CheckOutUser;
-use App\Model\Building\Event\BuildingAdded;
-use App\Model\Building\Event\DoubleCheckInDetected;
-use App\Model\Building\Event\DoubleCheckOutDetected;
-use App\Model\Building\Event\UserCheckedIn;
-use App\Model\Building\Event\UserCheckedOut;
+use MyService\Domain\Model\Base\AggregateRoot;
+use MyService\Domain\Model\Base\EventSourced;
+use MyService\Domain\Model\Building\Command\AddBuilding;
+use MyService\Domain\Model\Building\Command\CheckInUser;
+use MyService\Domain\Model\Building\Command\CheckOutUser;
+use MyService\Domain\Model\Building\Event\BuildingAdded;
+use MyService\Domain\Model\Building\Event\DoubleCheckInDetected;
+use MyService\Domain\Model\Building\Event\DoubleCheckOutDetected;
+use MyService\Domain\Model\Building\Event\UserCheckedIn;
+use MyService\Domain\Model\Building\Event\UserCheckedOut;
 
 final class Building implements AggregateRoot
 {
@@ -831,8 +831,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Flavour;
 
-use App\Model\Base\AggregateRoot;
-use Prooph\EventEngine\Runtime\Oop\Port;
+use MyService\Domain\Model\Base\AggregateRoot;
+use EventEngine\Runtime\Oop\Port;
 
 final class EventSourcedAggregatePort implements Port
 {
@@ -876,8 +876,8 @@ As a last step (before looking at the tests 🙈) we should activate the **OopFl
 namespace App\Service;
 
 use App\Infrastructure\Flavour\AppMessagePort;
-use Prooph\EventEngine\Runtime\Flavour;
-use Prooph\EventEngine\Runtime\FunctionalFlavour;
+use EventEngine\Runtime\Flavour;
+use EventEngine\Runtime\FunctionalFlavour;
 /* ... */
 
 final class ServiceFactory
@@ -941,21 +941,21 @@ declare(strict_types=1);
 
 namespace AppTest;
 
-use App\Api\Event;
+use MyService\Domain\Api\Event;
 use App\Infrastructure\Flavour\AppMessagePort;
 use App\Infrastructure\Flavour\EventSourcedAggregatePort;
-use App\Model\Base\AggregateRoot;
-use App\Model\Base\DomainEvent;
+use MyService\Domain\Model\Base\AggregateRoot;
+use MyService\Domain\Model\Base\DomainEvent;
 use PHPUnit\Framework\TestCase;
-use Prooph\EventEngine\Container\ContainerChain;
-use Prooph\EventEngine\Container\EventEngineContainer;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\Messaging\Message;
-use Prooph\EventEngine\Messaging\MessageBag;
-use Prooph\EventEngine\Runtime\Flavour;
-use Prooph\EventEngine\Runtime\FunctionalFlavour;
-use Prooph\EventEngine\Runtime\Oop\FlavourHint;
-use Prooph\EventEngine\Runtime\OopFlavour;
+use EventEngine\Container\ContainerChain;
+use EventEngine\Container\EventEngineContainer;
+use EventEngine\EventEngine;
+use EventEngine\Messaging\Message;
+use EventEngine\Messaging\MessageBag;
+use EventEngine\Runtime\Flavour;
+use EventEngine\Runtime\FunctionalFlavour;
+use EventEngine\Runtime\Oop\FlavourHint;
+use EventEngine\Runtime\OopFlavour;
 
 class BaseTestCase extends TestCase
 {
@@ -1023,11 +1023,11 @@ declare(strict_types=1);
 
 namespace AppTest\Model;
 
-use App\Api\Event;
-use App\Api\Payload;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Api\Payload;
 use AppTest\BaseTestCase;
 use Ramsey\Uuid\Uuid;
-use App\Model\Building;
+use MyService\Domain\Model\Building;
 
 class BuildingTest extends BaseTestCase
 {

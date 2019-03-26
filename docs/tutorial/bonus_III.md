@@ -4,8 +4,8 @@ Event Engine has a nice feature called **Flavours**. A Flavour lets you customiz
 your code. Throughout the tutorial we worked with the **PrototypingFlavour**, which is the default.
 
 As the name suggests, the PrototypingFlavour is optimized for rapid development. For example instead of defining classes
-for each type of message, Event Engine passes its default `Message` implementation to aggregate functions, process manager,
-finder and projectors. You don't need to care about serialization and mapping.
+for each type of message, Event Engine passes its default `Message` implementation to aggregate functions, process managers,
+resolvers and projectors. You don't need to care about serialization and mapping.
 
 {.alert .alert-info}
 If you want to try out new ideas, PrototypingFlavour is your best friend.
@@ -16,7 +16,7 @@ projects. This requires experimentation and with the PrototypingFlavour it's eas
 
 Experimentation is great, but at some point you'll be satisfied with the domain model and want to turn it into a clean and
 robust implementation. That's very important for long-lived applications. Fortunately, Event Engine offers two additional Flavours.
-One is called the **FunctionalFlavour** and the other one **OopFlavour**. Finally, you can implement your own `Prooph\EventEngine\Runtime\Flavour`
+One is called the **FunctionalFlavour** and the other one **OopFlavour**. Finally, you can implement your own `EventEngine\Runtime\Flavour`
 to turn Event Engine into your very own CQRS / ES framework.
 
 First let's look at the **FunctionalFlavour**. It's similar to what we did so fare, except that explicit message types are used instead of
@@ -24,20 +24,21 @@ generic Event Engine messages.
 
 ## Functional Port
 
-The FunctionalFlavour requires an implementation of `Prooph\EventEngine\Runtime\Functional\Port`. Here you have to define custom mapping and serialization
-logic for message types. Create a new class `AppMessagePort` in `src/Infrastructure/Flavour`:
+The FunctionalFlavour requires an implementation of `EventEngine\Runtime\Functional\Port`. Here you have to define custom mapping and serialization
+logic for message types. Create a new class `MyServiceMessagePort` in `src/System/Flavour`:
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Flavour;
+namespace MyService\System\Flavour;
 
-use Prooph\EventEngine\Messaging\Message;
-use Prooph\EventEngine\Messaging\MessageBag;
-use Prooph\EventEngine\Runtime\Functional\Port;
+use EventEngine\Messaging\CommandDispatchResult;
+use EventEngine\Messaging\Message;
+use EventEngine\Messaging\MessageBag;
+use EventEngine\Runtime\Functional\Port;
 
-final class AppMessagePort implements Port
+final class MyServiceMessagePort implements Port
 {
     /**
      * @param Message $message
@@ -55,6 +56,15 @@ final class AppMessagePort implements Port
     public function serializePayload($customMessage): array
     {
         // TODO: Implement serializePayload() method.
+    }
+
+    /**
+     * @param mixed $customCommand
+     * @return MessageBag
+     */
+    public function decorateCommand($customCommand): MessageBag
+    {
+        // TODO: Implement decorateCommand() method.
     }
 
     /**
@@ -79,11 +89,23 @@ final class AppMessagePort implements Port
     /**
      * @param mixed $customCommand
      * @param mixed $preProcessor Custom preprocessor
-     * @return mixed Custom message
+     * @return mixed|CommandDispatchResult Custom message or CommandDispatchResult
      */
     public function callCommandPreProcessor($customCommand, $preProcessor)
     {
         // TODO: Implement callCommandPreProcessor() method.
+    }
+
+    /**
+     * Commands returned by the controller are dispatched automatically
+     *
+     * @param mixed $customCommand
+     * @param mixed $controller
+     * @return mixed[]|null|CommandDispatchResult Array of custom commands or null|CommandDispatchResult to indicate that no further action is required
+     */
+    public function callCommandController($customCommand, $controller)
+    {
+        // TODO: Implement callCommandController() method.
     }
 
     /**
@@ -94,6 +116,11 @@ final class AppMessagePort implements Port
     public function callContextProvider($customCommand, $contextProvider)
     {
         // TODO: Implement callContextProvider() method.
+    }
+
+    public function callResolver($customQuery, $resolver)
+    {
+        // TODO: Implement callResolver() method.
     }
 }
 
@@ -131,13 +158,13 @@ We could also write our own serialization mechanism or use a third-party tool li
 
 Let's create some types and messages first:
 
-`src/Model/Building/BuildingId.php`
+`src/Domain/Model/Building/BuildingId.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building;
+namespace MyService\Domain\Model\Building;
 
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
@@ -183,13 +210,13 @@ final class BuildingId
 
 ```
 
-`src/Model/Building/BuildingName.php`
+`src/Domain/Model/Building/BuildingName.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building;
+namespace MyService\Domain\Model\Building;
 
 final class BuildingName
 {
@@ -227,13 +254,13 @@ final class BuildingName
 
 ```
 
-`src/Model/Building/Username.php`
+`src/Domain/Model/Building/Username.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building;
+namespace MyService\Domain\Model\Building;
 
 final class Username
 {
@@ -271,18 +298,18 @@ final class Username
 
 ```
 
-`src/Model/Building/Command/AddBuilding.php`
+`src/Domain/Model/Building/Command/AddBuilding.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building\Command;
+namespace MyService\Domain\Model\Building\Command;
 
-use App\Model\Building\BuildingId;
-use App\Model\Building\BuildingName;
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Building\BuildingId;
+use MyService\Domain\Model\Building\BuildingName;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class AddBuilding implements ImmutableRecord
 {
@@ -317,18 +344,18 @@ final class AddBuilding implements ImmutableRecord
 
 ```
 
-`src/Model/Building/Command/CheckInUser.php`
+`src/Domain/Model/Building/Command/CheckInUser.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building\Command;
+namespace MyService\Domain\Model\Building\Command;
 
-use App\Model\Building\BuildingId;
-use App\Model\Building\Username;
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Building\BuildingId;
+use MyService\Domain\Model\Building\Username;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class CheckInUser implements ImmutableRecord
 {
@@ -363,18 +390,18 @@ final class CheckInUser implements ImmutableRecord
 
 ```
 
-`src/Model/Building/Command/CheckOutUser.php`
+`src/Domain/Model/Building/Command/CheckOutUser.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building\Command;
+namespace MyService\Domain\Model\Building\Command;
 
-use App\Model\Building\BuildingId;
-use App\Model\Building\Username;
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Building\BuildingId;
+use MyService\Domain\Model\Building\Username;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class CheckOutUser implements ImmutableRecord
 {
@@ -410,24 +437,24 @@ final class CheckOutUser implements ImmutableRecord
 ```
 
 Ok, much more classes now. Each property has its own value object like `BuildingId`, `BuildingName` and `Username`. Again, that's not a requirement but it adds type safety to
-the implementation and serves as documentation. Don't worry about the amount of code. Most of it can be generated using PHPStorm templates. Event Engine docs contain useful tips.
+the implementation and serves as documentation. Don't worry about the amount of code. Most of it can be generated using PHPStorm templates. Event Engine docs contain useful tips (@TODO add docs link).
 Another possibility is the already mentioned library [FPP](https://github.com/prolic/fpp).
 
 With the value objects in place we've added a class for each command and implemented them as immutable records. Now we need a factory to instantiate a command with information
-taken from Event Engine messages. `App\Api\Command` already contains command specific information. Let's add the factory there.
+taken from Event Engine messages. `MyService\Domain\Api\Command` already contains command specific information. Let's add the factory there.
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Model\Building\Command\AddBuilding;
-use App\Model\Building\Command\CheckInUser;
-use App\Model\Building\Command\CheckOutUser;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
+use MyService\Domain\Model\Building\Command\AddBuilding;
+use MyService\Domain\Model\Building\Command\CheckInUser;
+use MyService\Domain\Model\Building\Command\CheckOutUser;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\JsonSchema\JsonSchema;
 
 class Command implements EventEngineDescription
 {
@@ -490,18 +517,18 @@ public function deserialize(Message $message)
 
 A similar implementation is required for events and queries:
 
-`src/Model/Building/Event/BuildingAdded.php`
+`src/Domain/Model/Building/Event/BuildingAdded.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building\Event;
+namespace MyService\Domain\Model\Building\Event;
 
-use App\Model\Building\BuildingId;
-use App\Model\Building\BuildingName;
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Building\BuildingId;
+use MyService\Domain\Model\Building\BuildingName;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class BuildingAdded implements ImmutableRecord
 {
@@ -536,18 +563,18 @@ final class BuildingAdded implements ImmutableRecord
 
 ```
 
-`src/Model/Building/Event/UserCheckedIn.php`
+`src/Domain/Model/Building/Event/UserCheckedIn.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building\Event;
+namespace MyService\Domain\Model\Building\Event;
 
-use App\Model\Building\BuildingId;
-use App\Model\Building\Username;
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Building\BuildingId;
+use MyService\Domain\Model\Building\Username;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class UserCheckedIn implements ImmutableRecord
 {
@@ -582,18 +609,18 @@ final class UserCheckedIn implements ImmutableRecord
 
 ```
 
-`src/Model/Building/Event/DoubleCheckInDetected.php`
+`src/Domain/Model/Building/Event/DoubleCheckInDetected.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building\Event;
+namespace MyService\Domain\Model\Building\Event;
 
-use App\Model\Building\BuildingId;
-use App\Model\Building\Username;
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Building\BuildingId;
+use MyService\Domain\Model\Building\Username;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class DoubleCheckInDetected implements ImmutableRecord
 {
@@ -628,18 +655,18 @@ final class DoubleCheckInDetected implements ImmutableRecord
 
 ```
 
-`src/Model/Building/Event/UserCheckedOut.php`
+`src/Domain/Model/Building/Event/UserCheckedOut.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building\Event;
+namespace MyService\Domain\Model\Building\Event;
 
-use App\Model\Building\BuildingId;
-use App\Model\Building\Username;
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Building\BuildingId;
+use MyService\Domain\Model\Building\Username;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class UserCheckedOut implements ImmutableRecord
 {
@@ -674,18 +701,18 @@ final class UserCheckedOut implements ImmutableRecord
 
 ```
 
-`src/Model/Building/Event/DoubleCheckOutDetected.php`
+`src/Domain/Model/Building/Event/DoubleCheckOutDetected.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building\Event;
+namespace MyService\Domain\Model\Building\Event;
 
-use App\Model\Building\BuildingId;
-use App\Model\Building\Username;
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Building\BuildingId;
+use MyService\Domain\Model\Building\Username;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class DoubleCheckOutDetected implements ImmutableRecord
 {
@@ -720,23 +747,23 @@ final class DoubleCheckOutDetected implements ImmutableRecord
 
 ```
 
-`src/Api/Event.php`
+`src/Domain/Api/Event.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
 
-use App\Model\Building\Event\BuildingAdded;
-use App\Model\Building\Event\DoubleCheckInDetected;
-use App\Model\Building\Event\DoubleCheckOutDetected;
-use App\Model\Building\Event\UserCheckedIn;
-use App\Model\Building\Event\UserCheckedOut;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
+use MyService\Domain\Model\Building\Event\BuildingAdded;
+use MyService\Domain\Model\Building\Event\DoubleCheckInDetected;
+use MyService\Domain\Model\Building\Event\DoubleCheckOutDetected;
+use MyService\Domain\Model\Building\Event\UserCheckedIn;
+use MyService\Domain\Model\Building\Event\UserCheckedOut;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\JsonSchema\JsonSchema;
 
 class Event implements EventEngineDescription
 {
@@ -782,30 +809,31 @@ class Event implements EventEngineDescription
 
 ```
 
-`src/Infrastructure/Finder/Query/GetBuilding.php`
+`src/Domain/Resolver/Query/GetBuilding.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Finder\Query;
+namespace MyService\Domain\Resolver\Query;
 
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Building\BuildingId;
 
 final class GetBuilding implements ImmutableRecord
 {
     use ImmutableRecordLogic;
 
     /**
-     * @var string
+     * @var BuildingId
      */
     private $buildingId;
 
     /**
-     * @return string
+     * @return BuildingId
      */
-    public function buildingId(): string
+    public function buildingId(): BuildingId
     {
         return $this->buildingId;
     }
@@ -813,16 +841,16 @@ final class GetBuilding implements ImmutableRecord
 
 ```
 
-`src/Infrastructure/Finder/Query/GetBuildings.php`
+`src/Domain/Resolver/Query/GetBuildings.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Finder\Query;
+namespace MyService\Domain\Resolver\Query;
 
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class GetBuildings implements ImmutableRecord
 {
@@ -831,43 +859,44 @@ final class GetBuildings implements ImmutableRecord
     /**
      * @var string|null
      */
-    private $name;
+    private $buildingNameFilter;
 
     /**
-     * @return null|string
+     * @return string|null
      */
-    public function name(): ?string
+    public function buildingNameFilter(): ?string
     {
-        return $this->name;
+        return $this->buildingNameFilter;
     }
 }
 
 ```
 
-`src/Infrastructure/Finder/Query/GetUserBuildingList.php`
+`src/Domain/Resolver/Query/GetUserBuildingList.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Finder\Query;
+namespace MyService\Domain\Resolver\Query;
 
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Building\Username;
 
 final class GetUserBuildingList implements ImmutableRecord
 {
     use ImmutableRecordLogic;
 
     /**
-     * @var string
+     * @var Username
      */
     private $name;
 
     /**
-     * @return string
+     * @return Username
      */
-    public function name(): string
+    public function name(): Username
     {
         return $this->name;
     }
@@ -875,24 +904,25 @@ final class GetUserBuildingList implements ImmutableRecord
 
 ```
 
-`src/Api/Query.php`
+`src/Domain/Api/Query.php`
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Infrastructure\Finder\BuildingFinder;
-use App\Infrastructure\Finder\Query\GetBuilding;
-use App\Infrastructure\Finder\Query\GetBuildings;
-use App\Infrastructure\Finder\Query\GetUserBuildingList;
-use App\Infrastructure\Finder\UserBuildingFinder;
-use App\Infrastructure\System\HealthCheckResolver;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\JsonSchema\JsonSchema;
+use EventEngine\Messaging\MessageBag;
+use MyService\Domain\Resolver\BuildingResolver;
+use MyService\Domain\Resolver\Query\GetBuilding;
+use MyService\Domain\Resolver\Query\GetBuildings;
+use MyService\Domain\Resolver\Query\GetUserBuildingList;
+use MyService\Domain\Resolver\UserBuildingResolver;
+use MyService\System\Api\SystemType;
 
 class Query implements EventEngineDescription
 {
@@ -950,7 +980,7 @@ class Query implements EventEngineDescription
 
 ```
 
-`src/Infrastructure/Flavour/AppMssagePort.php`
+`src/System/Flavour/AppMssagePort.php`
 
 ```php
 /**
@@ -975,7 +1005,7 @@ public function deserialize(Message $message)
 
 To convert our own message types to Event Engine messages we have to implement the `serializePayload` method:
 
-`src/Infrastructure/Flavour/AppMssagePort.php`
+`src/System/Flavour/AppMssagePort.php`
 
 ```php
 /**
@@ -1000,11 +1030,11 @@ public function serializePayload($customMessage): array
 
 ```
 
-## Decorate Event
+## Decorate Command / Event
 
-`decorateEvent` is a special method called for each event yielded by an aggregate function.
-The expected return type is `Prooph\EventEngine\Messaging\MessageBag`. You can think of it as an envelop
-for custom messages. The MessageBag can be used to add metadata information to events. Event Engine
+`decorateCommand` and `decorateEvent` are special methods called for each dispatched command and all yielded events.
+The expected return type is `EventEngine\Messaging\MessageBag`. You can think of it as an envelop
+for custom messages. The MessageBag can be used to add metadata information. Event Engine
 adds information like aggregate id, aggregate type, aggregate version, causation id (command id) and causation name (command name)
 by default. If you want to add additional metadata, just pass it to the MessageBag constructor (optional argument).
 
@@ -1012,11 +1042,26 @@ by default. If you want to add additional metadata, just pass it to the MessageB
 Decorating a custom event with a MessageBas has the advantage that a custom message can be carried through the Event Engine layer
 without serialization. Event Engine assumes a normal message and adds aggregate specific metadata like described above.
 The MessageBag is then passed back to the configured flavour to call a corresponding apply function. The flavour can access
-the decorated event and pass it to the function. All without serialization in between.
+the decorated event and pass it to the function. All without serialization in between. A similar approach is used when commands
+are passed to preprocessors or controllers (concepts not included in the tutorial, but you can read about them in the docs).
 
-`src/Infrastructure/Flavour/AppMssagePort.php`
+`src/System/Flavour/AppMssagePort.php`
 
 ```php
+/**
+ * @param mixed $customCommand
+ * @return MessageBag
+ */
+public function decorateCommand($customCommand): MessageBag
+{
+    return new MessageBag(
+        Command::nameOf($customCommand),
+        MessageBag::TYPE_COMMAND,
+        $customCommand
+    //, [] <- you could add additional metadata here
+    );
+}
+    
 /**
  * @param mixed $customEvent
  * @return MessageBag
@@ -1043,11 +1088,11 @@ Each command should contain the same aggregateId property. Remember that this in
 <?php
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Model\Building;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
+use MyService\Domain\Model\Building;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
 
 class Aggregate implements EventEngineDescription
 {
@@ -1095,13 +1140,13 @@ public function getAggregateIdFromCommand(string $aggregateIdPayloadKey, $comman
 But we would need to remember adding a new command here each time we add a new one to the system. That's annoying and interrupts the flow.
 Instead we can define an `AggregateCommand` interface that each command should implement.
 
-`src/Model/Base/AggregateCommand.php`
+`src/Domain/Model/Base/AggregateCommand.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Base;
+namespace MyService\Domain\Model\Base;
 
 interface AggregateCommand
 {
@@ -1110,19 +1155,19 @@ interface AggregateCommand
 
 ```
 
-`src/Model/Building/Command/AddBuilding.php`
+`src/Domain/Model/Building/Command/AddBuilding.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building\Command;
+namespace MyService\Domain\Model\Building\Command;
 
-use App\Model\Base\AggregateCommand;
-use App\Model\Building\BuildingId;
-use App\Model\Building\BuildingName;
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Base\AggregateCommand;
+use MyService\Domain\Model\Building\BuildingId;
+use MyService\Domain\Model\Building\BuildingName;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class AddBuilding implements ImmutableRecord, AggregateCommand //<-- Implement new interface
 {
@@ -1215,10 +1260,30 @@ public function callCommandPreProcessor($customCommand, $preProcessor)
 
 ```
 
+## Call Command Controller
+
+Instead of an aggregate a command can also be routed to a controller and the controller can decide if it forwards the command to an application service or return a list of other commands
+that are dispatched automatically. This is very useful for migrations or in scenarios where you want to use CQRS without event sourcing and without aggregates. In our demo application we don't
+use command controllers. Just like preprocessors we define them as callable.
+
+```php
+public function callCommandController($customCommand, $controller)
+{
+    if(is_callable($controller)) {
+        return $controller($customCommand);
+    }
+
+    throw new \RuntimeException("Cannot call command controller. Got "
+        . (is_object($controller)? get_class($controller) : gettype($controller))
+    );
+}
+```
+
+
 ## Call Context Provider
 
 Another concept that we don't know yet. A context provider can be used to inject context into aggregate functions.
-Again, read more about context providers in the docs.
+Read more about context providers in the docs (@TODO link docs).
 
 We're implementing a functional Flavour, so we expect a callable context provider passed to the port:
 
@@ -1243,6 +1308,241 @@ public function callContextProvider($customCommand, $contextProvider)
 
 ```
 
+## Call Resolver
+
+Last port method asks us to call a resolver. When using the `PrototypingFlavour` query resolvers should implement
+`EventEngine\Querying\Resolver`. But this is no longer possible because we want to pass our own queries to
+the resolvers and not Event Engine's generic message class. Hence, we need to define a project specific resolver interface instead
+along with a query marker interface:
+
+`src/Domain/Resolver/Query.php`
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace MyService\Domain\Resolver;
+
+interface Query
+{
+    //Query marker interface
+}
+
+```
+
+`src/Domain/Resolver/Resolver.php`
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace MyService\Domain\Resolver;
+
+interface Resolver
+{
+    /**
+     * @param Query $query
+     * @return mixed array or object with toArray or JsonSerializable support
+     */
+    public function resolve(Query $query);
+}
+
+```
+
+Existing queries should implement the marker interface and resolvers should implement the new resolver interface:
+
+`src/Domain/Resolver/Query/GetBuilding.php`
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace MyService\Domain\Resolver\Query;
+
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
+use MyService\Domain\Model\Building\BuildingId;
+use MyService\Domain\Resolver\Query;
+
+final class GetBuilding implements ImmutableRecord, Query
+{
+    use ImmutableRecordLogic;
+
+    /**
+     * @var BuildingId
+     */
+    private $buildingId;
+
+    /**
+     * @return BuildingId
+     */
+    public function buildingId(): BuildingId
+    {
+        return $this->buildingId;
+    }
+}
+
+```
+
+{.alert .alert-light}
+Add the interface to `GetBuildings` and `GetUserBuildingList` as well.
+
+`src/Domain/Resolver/BuildingResolver.php`
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace MyService\Domain\Resolver;
+
+use EventEngine\DocumentStore\DocumentStore;
+use EventEngine\DocumentStore\Filter\AnyFilter;
+use EventEngine\DocumentStore\Filter\LikeFilter;
+use MyService\Domain\Api\Payload;
+use MyService\Domain\Model\Building\BuildingId;
+use MyService\Domain\Resolver\Query\GetBuilding;
+use MyService\Domain\Resolver\Query\GetBuildings;
+
+final class BuildingResolver implements Resolver
+{
+    public const COLLECTION = 'buildings';
+    public const STATE = 'state';
+    public const STATE_DOT = 'state.';
+
+    /**
+     * @var DocumentStore
+     */
+    private $documentStore;
+
+    public function __construct(DocumentStore $documentStore)
+    {
+        $this->documentStore = $documentStore;
+    }
+
+    /**
+     * @param Query $query
+     * @return array
+     */
+    public function resolve(Query $query): array
+    {
+        switch (true) {
+            case $query instanceof GetBuilding:
+                return $this->resolveBuilding($query->buildingId());
+            case $query instanceof GetBuildings:
+                return $this->resolveBuildings($query->buildingNameFilter());
+        }
+    }
+
+    private function resolveBuilding(BuildingId $buildingId): array
+    {
+        $buildingDoc = $this->documentStore->getDoc(self::COLLECTION, $buildingId->toString());
+
+        if(!$buildingDoc) {
+            throw new \RuntimeException("Building not found", 404);
+        }
+
+        return $buildingDoc[self::STATE];
+    }
+
+    private function resolveBuildings(string $nameFilter = null): array
+    {
+        $filter = $nameFilter?
+            new LikeFilter(self::STATE_DOT . Payload::NAME, "%$nameFilter%")
+            : new AnyFilter();
+
+        $cursor = $this->documentStore->filterDocs(self::COLLECTION, $filter);
+
+        $buildings = [];
+
+        foreach ($cursor as $doc) {
+            $buildings[] = $doc[self::STATE];
+        }
+
+        return $buildings;
+    }
+}
+
+```
+
+`src/Domain/Resolver/UserBuildingResolver.php`
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace MyService\Domain\Resolver;
+
+use EventEngine\DocumentStore\DocumentStore;
+use EventEngine\Messaging\Message;
+use EventEngine\Util\VariableType;
+use MyService\Domain\Resolver\Query\GetUserBuildingList;
+
+final class UserBuildingResolver implements Resolver
+{
+    /**
+     * @var DocumentStore
+     */
+    private $documentStore;
+
+    /**
+     * @var string
+     */
+    private $userBuildingCollection;
+
+    /**
+     * @var string
+     */
+    private $buildingCollection;
+
+    public function __construct(DocumentStore $documentStore, string $userBuildingCol, string $buildingCol)
+    {
+        $this->documentStore = $documentStore;
+        $this->userBuildingCollection = $userBuildingCol;
+        $this->buildingCollection = $buildingCol;
+    }
+
+    public function resolve(Query $query): array
+    {
+        if(!$query instanceof GetUserBuildingList) {
+            throw new \RuntimeException("Invalid query. Can only handle " . GetUserBuildingList::class 
+                . '. But got ' . VariableType::determine($query));
+        }
+        
+        $userBuilding = $this->documentStore->getDoc(
+            $this->userBuildingCollection,
+            $query->name()->toString()
+        );
+
+        if(!$userBuilding) {
+            return [
+                'user' => $query->name()->toString(),
+                'building' => null
+            ];
+        }
+
+        $building = $this->documentStore->getDoc(
+            $this->buildingCollection,
+            $userBuilding['buildingId']
+        );
+
+        if(!$building) {
+            return [
+                'user' => $query->name()->toString(),
+                'building' => null
+            ];
+        }
+
+        return [
+            'user' => $query->name()->toString(),
+            'building' => $building['state'],
+        ];
+    }
+}
+
+```
+
+
+{.alert .alert-success}
 All methods of the `Functional\Port` are implemented. Good job! But we're not done yet.
 
 ## Switching The Flavour
@@ -1257,8 +1557,8 @@ With a new `flavour` method in the `ServiceFactory` we can provide one.
 namespace App\Service;
 
 use App\Infrastructure\Flavour\AppMessagePort;
-use Prooph\EventEngine\Runtime\Flavour;
-use Prooph\EventEngine\Runtime\FunctionalFlavour;
+use EventEngine\Runtime\Flavour;
+use EventEngine\Runtime\FunctionalFlavour;
 /* ... */
 
 final class ServiceFactory
@@ -1292,7 +1592,7 @@ final class ServiceFactory
             return new FunctionalFlavour(
                 new AppMessagePort()
                 /*
-                 * Additionally, inject a custom Prooph\EventEngine\Data\DataConverter
+                 * Additionally, inject a custom EventEngine\Data\DataConverter
                  * if aggregate state does not implement ImmutableRecord!
                  */
             );
@@ -1316,17 +1616,17 @@ $config = include 'config.php';
 $serviceFactory = new \App\Service\ServiceFactory($config);
 
 //@TODO use cached serviceFactoryMap for production
-$container = new \Prooph\EventEngine\Container\ReflectionBasedContainer(
+$container = new \EventEngine\Container\ReflectionBasedContainer(
     $serviceFactory,
     [
-        \Prooph\EventEngine\EventEngine::SERVICE_ID_EVENT_STORE => \Prooph\EventStore\EventStore::class,
-        \Prooph\EventEngine\EventEngine::SERVICE_ID_PROJECTION_MANAGER => \Prooph\EventStore\Projection\ProjectionManager::class,
-        \Prooph\EventEngine\EventEngine::SERVICE_ID_COMMAND_BUS => \App\Infrastructure\ServiceBus\CommandBus::class,
-        \Prooph\EventEngine\EventEngine::SERVICE_ID_EVENT_BUS => \App\Infrastructure\ServiceBus\EventBus::class,
-        \Prooph\EventEngine\EventEngine::SERVICE_ID_QUERY_BUS => \App\Infrastructure\ServiceBus\QueryBus::class,
-        \Prooph\EventEngine\EventEngine::SERVICE_ID_DOCUMENT_STORE => \Prooph\EventEngine\Persistence\DocumentStore::class,
+        \EventEngine\EventEngine::SERVICE_ID_EVENT_STORE => \Prooph\EventStore\EventStore::class,
+        \EventEngine\EventEngine::SERVICE_ID_PROJECTION_MANAGER => \Prooph\EventStore\Projection\ProjectionManager::class,
+        \EventEngine\EventEngine::SERVICE_ID_COMMAND_BUS => \App\Infrastructure\ServiceBus\CommandBus::class,
+        \EventEngine\EventEngine::SERVICE_ID_EVENT_BUS => \App\Infrastructure\ServiceBus\EventBus::class,
+        \EventEngine\EventEngine::SERVICE_ID_QUERY_BUS => \App\Infrastructure\ServiceBus\QueryBus::class,
+        \EventEngine\EventEngine::SERVICE_ID_DOCUMENT_STORE => \EventEngine\Persistence\DocumentStore::class,
         //Flavour alias
-        \Prooph\EventEngine\EventEngine::SERVICE_ID_FLAVOUR => \Prooph\EventEngine\Runtime\Flavour::class,
+        \EventEngine\EventEngine::SERVICE_ID_FLAVOUR => \EventEngine\Runtime\Flavour::class,
     ]
 );
 
@@ -1353,16 +1653,16 @@ the application.
 <?php
 declare(strict_types=1);
 
-namespace App\Model;
+namespace MyService\Domain\Model;
 
-use App\Model\Building\Command\AddBuilding;
-use App\Model\Building\Command\CheckInUser;
-use App\Model\Building\Command\CheckOutUser;
-use App\Model\Building\Event\BuildingAdded;
-use App\Model\Building\Event\DoubleCheckInDetected;
-use App\Model\Building\Event\DoubleCheckOutDetected;
-use App\Model\Building\Event\UserCheckedIn;
-use App\Model\Building\Event\UserCheckedOut;
+use MyService\Domain\Model\Building\Command\AddBuilding;
+use MyService\Domain\Model\Building\Command\CheckInUser;
+use MyService\Domain\Model\Building\Command\CheckOutUser;
+use MyService\Domain\Model\Building\Event\BuildingAdded;
+use MyService\Domain\Model\Building\Event\DoubleCheckInDetected;
+use MyService\Domain\Model\Building\Event\DoubleCheckOutDetected;
+use MyService\Domain\Model\Building\Event\UserCheckedIn;
+use MyService\Domain\Model\Building\Event\UserCheckedOut;
 
 final class Building
 {
@@ -1428,10 +1728,10 @@ final class Building
 <?php
 declare(strict_types=1);
 
-namespace App\Model\Building;
+namespace MyService\Domain\Model\Building;
 
-use Prooph\EventEngine\Data\ImmutableRecord;
-use Prooph\EventEngine\Data\ImmutableRecordLogic;
+use EventEngine\Data\ImmutableRecord;
+use EventEngine\Data\ImmutableRecordLogic;
 
 final class State implements ImmutableRecord
 {
@@ -1524,8 +1824,8 @@ final class State implements ImmutableRecord
 
 ```
 
-`UserBuildingList` projector now needs to implement the interface `Prooph\EventEngine\Projecting\CustomEventProjector`
-instead of `Prooph\EventEngine\Projecting\Projector`:
+`UserBuildingList` projector now needs to implement the interface `EventEngine\Projecting\CustomEventProjector`
+instead of `EventEngine\Projecting\Projector`:
 
 `src/Infrastructure/Projector/UserBuildingList.php`
 
@@ -1535,13 +1835,13 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Projector;
 
-use App\Api\Event;
-use App\Api\Payload;
-use App\Model\Building\Event\UserCheckedIn;
-use App\Model\Building\Event\UserCheckedOut;
-use Prooph\EventEngine\Persistence\DocumentStore;
-use Prooph\EventEngine\Projecting\AggregateProjector;
-use Prooph\EventEngine\Projecting\CustomEventProjector;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Api\Payload;
+use MyService\Domain\Model\Building\Event\UserCheckedIn;
+use MyService\Domain\Model\Building\Event\UserCheckedOut;
+use EventEngine\Persistence\DocumentStore;
+use EventEngine\Projecting\AggregateProjector;
+use EventEngine\Projecting\CustomEventProjector;
 
 final class UserBuildingList implements CustomEventProjector
 {
@@ -1613,7 +1913,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\ServiceBus;
 
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 
 /**
  * Marker Interface UiExchange
@@ -1723,10 +2023,10 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Finder;
 
-use App\Api\Payload;
+use MyService\Domain\Api\Payload;
 use App\Infrastructure\Finder\Query\GetBuilding;
 use App\Infrastructure\Finder\Query\GetBuildings;
-use Prooph\EventEngine\Persistence\DocumentStore;
+use EventEngine\Persistence\DocumentStore;
 use React\Promise\Deferred;
 
 final class BuildingFinder
@@ -1803,9 +2103,9 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Finder;
 
-use App\Api\Payload;
+use MyService\Domain\Api\Payload;
 use App\Infrastructure\Finder\Query\GetUserBuildingList;
-use Prooph\EventEngine\Persistence\DocumentStore;
+use EventEngine\Persistence\DocumentStore;
 use React\Promise\Deferred;
 
 final class UserBuildingFinder
@@ -1890,11 +2190,11 @@ namespace AppTest;
 
 use App\Infrastructure\Flavour\AppMessagePort;
 use PHPUnit\Framework\TestCase;
-use Prooph\EventEngine\Container\ContainerChain;
-use Prooph\EventEngine\Container\EventEngineContainer;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\Messaging\Message;
-use Prooph\EventEngine\Runtime\FunctionalFlavour;
+use EventEngine\Container\ContainerChain;
+use EventEngine\Container\EventEngineContainer;
+use EventEngine\EventEngine;
+use EventEngine\Messaging\Message;
+use EventEngine\Runtime\FunctionalFlavour;
 
 class BaseTestCase extends TestCase
 {
@@ -1942,11 +2242,11 @@ namespace AppTest;
 
 use App\Infrastructure\Flavour\AppMessagePort;
 use PHPUnit\Framework\TestCase;
-use Prooph\EventEngine\Container\ContainerChain;
-use Prooph\EventEngine\Container\EventEngineContainer;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\Messaging\Message;
-use Prooph\EventEngine\Runtime\FunctionalFlavour;
+use EventEngine\Container\ContainerChain;
+use EventEngine\Container\EventEngineContainer;
+use EventEngine\EventEngine;
+use EventEngine\Messaging\Message;
+use EventEngine\Runtime\FunctionalFlavour;
 
 class BaseTestCase extends TestCase
 {
@@ -2006,9 +2306,9 @@ declare(strict_types=1);
 
 namespace AppTest\Integration;
 
-use App\Api\Command;
-use App\Api\Event;
-use App\Api\Payload;
+use MyService\Domain\Api\Command;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Api\Payload;
 use App\Infrastructure\ServiceBus\UiExchange;
 use AppTest\BaseTestCase;
 
@@ -2100,11 +2400,11 @@ declare(strict_types=1);
 
 namespace AppTest\Model;
 
-use App\Api\Event;
-use App\Api\Payload;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Api\Payload;
 use AppTest\BaseTestCase;
 use Ramsey\Uuid\Uuid;
-use App\Model\Building;
+use MyService\Domain\Model\Building;
 
 class BuildingTest extends BaseTestCase
 {
@@ -2136,14 +2436,14 @@ declare(strict_types=1);
 
 namespace AppTest\Infrastructure\Projector;
 
-use App\Api\Payload;
+use MyService\Domain\Api\Payload;
 use App\Infrastructure\Projector\UserBuildingList;
-use App\Model\Building\Event\UserCheckedIn;
-use App\Model\Building\Event\UserCheckedOut;
+use MyService\Domain\Model\Building\Event\UserCheckedIn;
+use MyService\Domain\Model\Building\Event\UserCheckedOut;
 use AppTest\BaseTestCase;
-use Prooph\EventEngine\Persistence\DocumentStore;
-use Prooph\EventEngine\Persistence\InMemoryConnection;
-use Prooph\EventEngine\Projecting\AggregateProjector;
+use EventEngine\Persistence\DocumentStore;
+use EventEngine\Persistence\InMemoryConnection;
+use EventEngine\Projecting\AggregateProjector;
 
 final class UserBuildingListTest extends BaseTestCase
 {

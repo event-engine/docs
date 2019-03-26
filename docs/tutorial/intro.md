@@ -22,22 +22,22 @@ Each time a user is `checked in` or `checked out` we get a notification via a we
 
 Please make sure you have [Docker](https://docs.docker.com/engine/installation/ "Install Docker") and [Docker Compose](https://docs.docker.com/compose/install/ "Install Docker Compose") installed.
 
-*Note: Docker is THE ONLY supported set up at the moment. If you don't want to install docker you need PHP 7.1+ and Postgres 9.4+.*
+*Note: Docker is THE ONLY supported set up at the moment. If you don't want to install docker you need PHP 7.2+ and Postgres 9.4+.*
 
 ### Clone Event Engine Skeleton
 
-Change into your working directory and use `composer` to create a new project based on the [event machine skeleton](https://github.com/proophsoftware/event-machine-skeleton)
-using `prooph-em-buildings` as project name.
+Change into your working directory and use `composer` to create a new project based on the [event engine skeleton](https://github.com/event-engine/php-engine-skeleton)
+using `ee-buildings` as project name.
 
 ```bash
-$ docker run --rm -it -v $(pwd):/app prooph/composer:7.1 create-project proophsoftware/event-machine-skeleton prooph-em-buildings
+$ docker run --rm -it -v $(pwd):/app prooph/composer:7.2 create-project event-engine/php-engine-skeleton ee-buildings
 ```
 
-Change into the newly created project dir `prooph-em-buildings`, start the docker containers and run the set up script
+Change into the newly created project dir `ee-buildings`, start the docker containers and run the set up script
 for the event store.
 
 ```bash
-$ cd prooph-em-buildings
+$ cd ee-buildings
 $ sudo chown -R $(id -u -n):$(id -g -n) .
 $ docker-compose up -d
 $ docker-compose run php php scripts/create_event_stream.php
@@ -52,7 +52,7 @@ Verify database set up by connecting to the Postgres database using:
 ```
 host: localhost
 port: 5432
-dbname: event_machine
+dbname: event_engine
 user: postgres
 pwd: 
 ``` 
@@ -64,7 +64,7 @@ It will contain all `domain events`.
 
 #### Webserver
 Head over to `http://localhost:8080` to check if the containers are up and running.
-You should see a "It works" message.
+You should see a simple "It works" message.
 
 #### Swagger UI
 By default Event Engine exposes commands (we will learn more about them in a minute), events and queries via a message box endpoint.
@@ -83,7 +83,7 @@ You should get a JSON response similar to that one:
 
 If everything works correctly we are ready to implement our first use case: **Add a building**
 
-*Note: If something is not working as expected (now or later in the tutorial) please check the trouble shooting section of the event-machine-skeleton README first.*
+*Note: If something is not working as expected (now or later in the tutorial) please check the trouble shooting section of the event-engine/php-engine-skeleton README first.*
 
 
 

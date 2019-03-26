@@ -27,11 +27,11 @@ We need an event to record a `DoubleCheckIn`:
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\JsonSchema\JsonSchema;
 
 class Event implements EventEngineDescription
 {
@@ -65,11 +65,11 @@ Now that we have the event we can replace the exception and yield a `DoubleCheck
 
 declare(strict_types=1);
 
-namespace App\Model;
+namespace MyService\Domain\Model;
 
-use App\Api\Event;
-use App\Api\Payload;
-use Prooph\EventEngine\Messaging\Message;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Api\Payload;
+use EventEngine\Messaging\Message;
 
 final class Building
 {
@@ -114,11 +114,11 @@ We need to tell Event Engine that `Building::checkInUser()` yields `DoubleCheckI
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Model\Building;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
+use MyService\Domain\Model\Building;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
 
 class Aggregate implements EventEngineDescription
 {
@@ -148,10 +148,8 @@ Try to check *John* in again:
 
 ```json
 {
-  "payload": {
-    "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb",
-    "name": "John"
-  }
+  "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb",
+  "name": "John"
 }
 ```
 
@@ -173,7 +171,7 @@ can receive arbitrary notification messages. To communicate with that external s
 from web frameworks like Symfony or Zend. Listeners in Event Engine **react** to domain events and trigger follow up
 commands for actions, like sending emails or interacting with external systems.
 
-We can simulate the security monitoring system with a small JS app shipped with the event-machine-skeleton.
+We can simulate the security monitoring system with a small JS app shipped with the php-engine-skeleton.
 Open `http://localhost:8080/ws.html` in your browser.
 
 *Note: If the app shows a connection error then try to log into the rabbit mgmt console first: `https://localhost:8081`. Accept the self-signed certificate
@@ -181,22 +179,22 @@ and login with usr: `prooph` pwd: `prooph`. If you're logged in switch back to `
 
 If the app says `Status: Connected to websocket: ui-queue` it is ready to receive messages from Event Engine.
 
-In `src/Service/ServiceFactory` you can find a factory method for a `App\Infrastructure\ServiceBus\UiExchange`.
+In `src/System/SystemServices` you can find a factory method for a `MyService\System\UiExchange`.
 It's a default domain event listener shipped with the skeleton that can be used to push events on a *RabbitMQ ui-exchange*.
 The exchange is preconfigured (you can see that in the rabbit mgmt UI) and the JS app connects to a corresponding *ui-queue*.
 
-In `src/Api/Listener` we can put together the pieces:
+In `src/Domain/Api/Listener` we can put the pieces together:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Infrastructure\ServiceBus\UiExchange;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use MyService\System\UiExchange;
 
 class Listener implements EventEngineDescription
 {
@@ -216,10 +214,8 @@ Try to check *John* in again, while keeping an eye on the monitoring app `http:/
 
 ```json
 {
-  "payload": {
-    "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb",
-    "name": "John"
-  }
+  "buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb",
+  "name": "John"
 }
 ```
 ![Monitoring UI](img/monitoring.png)]
@@ -228,10 +224,8 @@ Try to check *John* in again, while keeping an eye on the monitoring app `http:/
 
 Congratulations! You've mastered the Event Engine tutorial. There are two bonus parts available to learn more
 about **custom projections** and **testing with Event Engine**.
-And another two bonus parts introduce **Event Engine Flavours**. Choose your own Flavour and maximize your very personal
+And another two bonus parts introduce **Event Engine Flavours**. Choose your own Flavour and maximize personal
 developer experience with Event Engine.
-
-The current implementation is available as a **demo** branch of `proophsoftware/event-machine-skeleton`.
 
 The Event Engine API docs contain a lot more details. Last but not least, a reminder that the prooph software team
 offers commercial project support and workshops for Event Engine and the prooph components.
@@ -239,11 +233,8 @@ offers commercial project support and workshops for Event Engine and the prooph 
 Our workshops include Event Storming sessions and guidance on how to turn the results into working prototypes using Event Engine.
 We can also show and discuss framework integrations. Event Engine can easily be integrated with *Symfony*, *Laravel* and
 other PHP web frameworks. The skeleton is based on *Zend Strategility* so you can handle http related tasks, like authentication,
-using *PSR-15* middleware. But again, other web frameworks play nicely with Event Engine, too.
+using *PSR-15* middleware. But again, other web frameworks play nicely with Event Engine!
 
 [![prooph software](https://github.com/codeliner/php-ddd-cargo-sample/raw/master/docs/assets/prooph-software-logo.png)](http://prooph.de)
 
 If you are interested please [get in touch](http://getprooph.org/#get-in-touch)!
-
-
-

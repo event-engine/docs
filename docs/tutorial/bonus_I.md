@@ -18,21 +18,21 @@ A custom projection can keep track of `UserCheckedIn` and `UserCheckedOut` event
 
 First check in John again (in case he is checked out because you've successfully tested the `CheckOutUser` command)!
 
-To do that we need our own `Prooph\EventEngine\Projecting\Projector` implementation. Create a new class called
-`UserBuildingList` in `src/Infrastructure/Projector` with the following content:
+To do that we need our own `EventEngine\Projecting\Projector` implementation. Create a new class called
+`UserBuildingList` in `src/Domain/Projector` with the following content:
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Projector;
+namespace MyService\Domain\Projector;
 
-use App\Api\Event;
-use App\Api\Payload;
-use Prooph\EventEngine\Messaging\Message;
-use Prooph\EventEngine\Persistence\DocumentStore;
-use Prooph\EventEngine\Projecting\AggregateProjector;
-use Prooph\EventEngine\Projecting\Projector;
+use EventEngine\DocumentStore\DocumentStore;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Api\Payload;
+use EventEngine\Messaging\Message;
+use EventEngine\Projecting\AggregateProjector;
+use EventEngine\Projecting\Projector;
 
 final class UserBuildingList implements Projector
 {
@@ -46,19 +46,19 @@ final class UserBuildingList implements Projector
         $this->documentStore = $documentStore;
     }
 
-    public function prepareForRun(string $appVersion, string $projectionName): void
+    public function prepareForRun(string $projectionVersion, string $projectionName): void
     {
-        if(!$this->documentStore->hasCollection($this->generateCollectionName($appVersion, $projectionName))) {
+        if(!$this->documentStore->hasCollection(self::generateCollectionName($projectionVersion, $projectionName))) {
             $this->documentStore->addCollection(
-                $this->generateCollectionName($appVersion, $projectionName)
-                /* Note: we could pass index configuration as a second argument, see docs for details */
+                self::generateCollectionName($projectionVersion, $projectionName)
+            /* Note: we could pass index configuration as a second argument, see docs for details */
             );
         }
     }
 
-    public function handle(string $appVersion, string $projectionName, Message $event): void
+    public function handle(string $projectionVersion, string $projectionName, Message $event): void
     {
-        $collection = $this->generateCollectionName($appVersion, $projectionName);
+        $collection = self::generateCollectionName($projectionVersion, $projectionName);
 
         switch ($event->messageName()) {
             case Event::USER_CHECKED_IN:
@@ -78,58 +78,44 @@ final class UserBuildingList implements Projector
 
     public function deleteReadModel(string $appVersion, string $projectionName): void
     {
-        $this->documentStore->dropCollection($this->generateCollectionName($appVersion, $projectionName));
+        $this->documentStore->dropCollection(self::generateCollectionName($appVersion, $projectionName));
     }
 
-    private function generateCollectionName(string $appVersion, string $projectionName): string
+    public static function generateCollectionName(string $projectionVersion, string $projectionName): string
     {
-        //We can use the naming strategy of the aggregate projector for our custom projection, too
-        return AggregateProjector::generateCollectionName($appVersion, $projectionName);
+        //We can use the naming strategy of the aggregate projector for our custom projection
+        return AggregateProjector::generateCollectionName($projectionVersion, $projectionName);
     }
 }
 
 ```
-Make the projector available as a service in `src/Service/ServiceFactory`:
+Make the projector available as a service in `src/Domain/DomainServices`:
 
 ```php
 <?php
+declare(strict_types=1);
 
-namespace App\Service;
+namespace MyService\Domain;
 
-use App\Infrastructure\Projector\UserBuildingList;
-use ...
+use MyService\Domain\Api\Aggregate;
+use MyService\Domain\Api\Command;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Api\Listener;
+use MyService\Domain\Api\Projection;
+use MyService\Domain\Api\Query;
+use MyService\Domain\Api\Type;
+use MyService\Domain\Projector\UserBuildingList;
+use MyService\Domain\Resolver\BuildingResolver;
 
-final class ServiceFactory
+trait DomainServices
 {
-    use ServiceRegistry;
-
-    /**
-     * @var ArrayReader
-     */
-    private $config;
-
-    /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    /* ... */
-
-    //Finders
-    public function buildingFinder(): BuildingFinder
+    public function buildingResolver(): BuildingResolver
     {
-        return $this->makeSingleton(BuildingFinder::class, function () {
-            return new BuildingFinder(
-                AggregateProjector::aggregateCollectionName(
-                    $this->eventEngine()->appVersion(),
-                    Aggregate::BUILDING
-                ),
-                $this->documentStore()
-            );
+        return $this->makeSingleton(BuildingResolver::class, function () {
+            return new BuildingResolver($this->documentStore());
         });
     }
 
-    //Projectors
     public function userBuildingListProjector(): UserBuildingList
     {
         return $this->makeSingleton(UserBuildingList::class, function () {
@@ -137,23 +123,35 @@ final class ServiceFactory
         });
     }
 
-    /* ... */
+    public function domainDescriptions(): array
+    {
+        return [
+            Type::class,
+            Command::class,
+            Event::class,
+            Query::class,
+            Aggregate::class,
+            Projection::class,
+            Listener::class,
+        ];
+    }
 }
+
 ```
 
-And describe the projector in `src/Api/Projection`:
+And describe the projector in `src/Domain/Api/Projection`:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Infrastructure\Projector\UserBuildingList;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\Persistence\Stream;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\Persistence\Stream;
+use MyService\Domain\Projector\UserBuildingList;
 
 class Projection implements EventEngineDescription
 {
@@ -178,14 +176,38 @@ class Projection implements EventEngineDescription
 
 ```
 
-If you look at the Postgres DB you should see a new table called `em_ds_user_building_list_0_1_0` but the table is empty.
-We can reset the long-running projection process used by Event Engine and therefor recreate all read models.
-This will fill the new read model with data from the past. That's cool, isn't it?
+{.alert .alert-warning}
+Projections are deactivated by default, because we assume that you want to start with the `MultiModelStore` only.
+Added deployment complexity and eventual consistency are the main drawbacks of projections. On the other hand, they help 
+to keep queries simple and fast. During my developer career I've spent countless hours with analyzing, migrating and
+improving query logic. Developers tend to put too much logic into queries. We've learned to normalize the write model
+to keep it consistent and throw SQL, Elastic, MongoDB, ... query power against every problem. More often than not,
+this ends up in large and complex queries, hard to understand, debug and expand. Sounds familiar? Projections to the rescue!
 
-Run the command `docker-compose run php php bin/reset.php` in the project directory and check the table again.
+Having said this, let's activate the default **write-model-projection** shipped with the skeleton. It's a [prooph/event-store v7
+read model projection](http://docs.getprooph.org/event-store/projections.html#3-4-3), that watches the standard write model stream
+of Event Engine. To activate it, uncomment the appropriate docker container in `docker-compose.yml`:
 
+```yaml
+  event_engine_projection:
+    image: prooph/php:7.2-cli
+    volumes:
+      - .:/app
+    depends_on:
+      - postgres
+    command: php /app/bin/event_engine_projection.php
+    # Needed so that projection is automatically restarted when new events are registered in event engine
+    restart: on-failure
+    env_file:
+      - ./app.env
+```
+and start it with:
 
-Here we go:
+```bash
+docker-compose up -d
+```
+
+If you look at the Postgres DB you should see a new table called `building_list_0_1_0` with one row:
 
 id | doc
 ---|---
@@ -193,25 +215,32 @@ John | {"buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb"}
 
 {.alert .alert-warning}
 If the table is empty make sure that you've checked in John. If that's the case, your projection might have a problem. Check the troubleshooting section
-of Event Engine's README.
+of the skeleton README.
+
+{.alert .alert-info}
+The **write-model-projection** is a single long-running php process. It polls the event store for new events and forwards them to Event Engine. 
+Event Engine checks its projection descriptions and invokes all projectors interested in the forwarded events. If you add another projection
+and want to fill it with past data, you can run the script `docker-compose run --rm php php bin/reset.php`. Projections are versioned 
+(version can be defined as a third argument in the projection description, default is 0.1.0). This way,
+it's possible to generate a new read model version during deployment while the old version is still available (version is part of the table name).
 
 ## Look up
 
-We can add a new query, finder and corresponding type definitions to complete the look up feature.
+We can add a new query, resolver and corresponding type definitions to complete the look up feature.
 
-*src/Api/Type*
+*src/Domain/Api/Type*
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Model\Building;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
-use Prooph\EventEngine\JsonSchema\Type\ObjectType;
+use MyService\Domain\Model\Building;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\JsonSchema\JsonSchema;
+use EventEngine\JsonSchema\Type\ObjectType;
 
 class Type implements EventEngineDescription
 {
@@ -233,9 +262,6 @@ class Type implements EventEngineDescription
      */
     public static function describe(EventEngine $eventEngine): void
     {
-        //Register the HealthCheck type returned by @see \App\Api\Query::HEALTH_CHECK
-        $eventEngine->registerType(self::HEALTH_CHECK, self::healthCheck());
-
         $eventEngine->registerType(Aggregate::BUILDING, Building\State::__schema());
 
         $eventEngine->registerType(self::USER_BUILDING, self::userBuilding()); //<-- type registration
@@ -243,19 +269,19 @@ class Type implements EventEngineDescription
 }
 
 ```
-*src/Api/Schema*
+*src/Domain/Api/Schema*
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use Prooph\EventEngine\JsonSchema\JsonSchema;
-use Prooph\EventEngine\JsonSchema\Type\ArrayType;
-use Prooph\EventEngine\JsonSchema\Type\StringType;
-use Prooph\EventEngine\JsonSchema\Type\TypeRef;
-use Prooph\EventEngine\JsonSchema\Type\UuidType;
+use EventEngine\JsonSchema\JsonSchema;
+use EventEngine\JsonSchema\Type\ArrayType;
+use EventEngine\JsonSchema\Type\StringType;
+use EventEngine\JsonSchema\Type\TypeRef;
+use EventEngine\JsonSchema\Type\UuidType;
 
 class Schema
 {
@@ -276,19 +302,19 @@ class Schema
 
 ```
 
-*src/Infrastructure/Finder/UserBuildingFinder*
+*src/Domain/Resolver/UserBuildingResolver*
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Finder;
+namespace MyService\Domain\Resolver;
 
-use App\Api\Payload;
-use Prooph\EventEngine\Messaging\Message;
-use Prooph\EventEngine\Persistence\DocumentStore;
-use React\Promise\Deferred;
+use EventEngine\DocumentStore\DocumentStore;
+use EventEngine\Messaging\Message;
+use EventEngine\Querying\Resolver;
+use MyService\Domain\Api\Payload;
 
-final class UserBuildingFinder
+final class UserBuildingResolver implements Resolver
 {
     /**
      * @var DocumentStore
@@ -312,7 +338,7 @@ final class UserBuildingFinder
         $this->buildingCollection = $buildingCol;
     }
 
-    public function __invoke(Message $query, Deferred $deferred): void
+    public function resolve(Message $query): array
     {
         $userBuilding = $this->documentStore->getDoc(
             $this->userBuildingCollection,
@@ -320,11 +346,10 @@ final class UserBuildingFinder
         );
 
         if(!$userBuilding) {
-            $deferred->resolve([
+            return [
                 'user' => $query->get(Payload::NAME),
                 'building' => null
-            ]);
-            return;
+            ];
         }
 
         $building = $this->documentStore->getDoc(
@@ -333,85 +358,97 @@ final class UserBuildingFinder
         );
 
         if(!$building) {
-            $deferred->resolve([
+            return [
                 'user' => $query->get(Payload::NAME),
                 'building' => null
-            ]);
-            return;
+            ];
         }
 
-        $deferred->resolve([
+        return [
             'user' => $query->get(Payload::NAME),
-            'building' => $building
-        ]);
-        return;
+            'building' => $building['state'],
+        ];
     }
 }
 
 ```
 
-*src/Service/ServiceFactory*
+*src/Domain/DomainServices*
 ```php
 <?php
+declare(strict_types=1);
 
-namespace App\Service;
+namespace MyService\Domain;
 
-use App\Infrastructure\Finder\UserBuildingFinder;
-use ...
+use MyService\Domain\Api\Aggregate;
+use MyService\Domain\Api\Command;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Api\Listener;
+use MyService\Domain\Api\Projection;
+use MyService\Domain\Api\Query;
+use MyService\Domain\Api\Type;
+use MyService\Domain\Projector\UserBuildingList;
+use MyService\Domain\Resolver\BuildingResolver;
+use MyService\Domain\Resolver\UserBuildingResolver;
 
-final class ServiceFactory
+trait DomainServices
 {
-    use ServiceRegistry;
-
-    /**
-     * @var ArrayReader
-     */
-    private $config;
-
-    /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    /* ... */
-
-    //Finders
-    public function userBuildingFidner(): UserBuildingFinder
+    public function buildingResolver(): BuildingResolver
     {
-        return $this->makeSingleton(UserBuildingFinder::class, function () {
-            return new UserBuildingFinder(
+        return $this->makeSingleton(BuildingResolver::class, function () {
+            return new BuildingResolver($this->documentStore());
+        });
+    }
+
+    public function userBuildingResolver(): UserBuildingResolver
+    {
+        return $this->makeSingleton(UserBuildingResolver::class, function () {
+            return new UserBuildingResolver(
                 $this->documentStore(),
-                AggregateProjector::generateCollectionName(
-                    $this->eventEngine()->appVersion(),
-                    Projection::USER_BUILDING_LIST
-                ),
-                AggregateProjector::aggregateCollectionName(
-                    $this->eventEngine()->appVersion(),
-                    Aggregate::BUILDING
-                )
+                UserBuildingList::generateCollectionName(
+                    '0.1.0', 
+                    Projection::USER_BUILDING_LIST),
+                BuildingResolver::COLLECTION
             );
         });
     }
-    /* ... */
+
+    public function userBuildingListProjector(): UserBuildingList
+    {
+        return $this->makeSingleton(UserBuildingList::class, function () {
+            return new UserBuildingList($this->documentStore());
+        });
+    }
+
+    public function domainDescriptions(): array
+    {
+        return [
+            Type::class,
+            Command::class,
+            Event::class,
+            Query::class,
+            Aggregate::class,
+            Projection::class,
+            Listener::class,
+        ];
+    }
 }
+
 ```
 
-*src/Api/Query*
+*src/Domain/Api/Query*
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Infrastructure\Finder\UserBuildingFinder;
+use MyService\Domain\Resolver\UserBuildingResolver;
 use ...
 
 class Query implements EventEngineDescription
 {
-    /**
-     * Default Query, used to perform health checks using messagebox endpoint
-     */
     /* ... */
     const USER_BUILDING = 'UserBuilding';
 
@@ -423,7 +460,7 @@ class Query implements EventEngineDescription
             self::USER_BUILDING,
             JsonSchema::object(['name' => Schema::username()])
         )
-            ->resolveWith(UserBuildingFinder::class)
+            ->resolveWith(UserBuildingResolver::class)
             ->setReturnType(Schema::userBuilding());
     }
 }
@@ -432,9 +469,7 @@ class Query implements EventEngineDescription
 *Swagger - UserBuilding query*
 ```json
 {
-  "payload": {
-    "name": "John"
-  }
+  "name": "John"
 }
 ```
 

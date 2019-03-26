@@ -9,7 +9,7 @@ they don't have internal **state** and also **no dependencies**.
 Event Engine can take over the boilerplate and we, as developers, can **focus on the business logic**. I'll explain
 in greater detail later, but first we want to see a **pure aggregate function** in action.
 
-*Note: If you've worked with a CQRS framework before it is maybe confusing
+*Note: If you've worked with a CQRS framework before, it's maybe confusing
 because normally a command is handled by a command handler (comparable to an application service that handles a domain action)
 and the command handler would load a business entity or "DDD" aggregate from a repository. We still use the aggregate concept but make
 use of a functional programming approach. It keeps the domain model lean and testable and allows some nice
@@ -22,9 +22,9 @@ Let's add the first aggregate called `Building` in a new `Model` folder:
 
 declare(strict_types=1);
 
-namespace App\Model;
+namespace MyService\Domain\Model;
 
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 
 final class Building
 {
@@ -55,18 +55,18 @@ managed by Event Engine. The series of events can then be used to calculate the 
 We will see that in action in a later part of the tutorial and get a better understanding of the technique
 when we add more use cases to the application.
 
-For now let's add the first domain event in `src/Api/Event`:
+For now let's add the first domain event in `src/Domain/Api/Event`:
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
-use Prooph\EventEngine\JsonSchema\JsonSchema;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
+use EventEngine\JsonSchema\JsonSchema;
 
 class Event implements EventEngineDescription
 {
@@ -109,10 +109,10 @@ command.
 
 declare(strict_types=1);
 
-namespace App\Model;
+namespace MyService\Domain\Model;
 
-use App\Api\Event;
-use Prooph\EventEngine\Messaging\Message;
+use MyService\Domain\Api\Event;
+use EventEngine\Messaging\Message;
 
 final class Building
 {
@@ -123,6 +123,8 @@ final class Building
 }
 
 ```
+
+{.alert .alert-info}
 The special array syntax for yielding events is a short cut used by Event Engine. It creates the event based on given
 event name and payload and stores it in the event stream.
 
@@ -130,18 +132,18 @@ event name and payload and stores it in the event stream.
 
 If we switch back to the Swagger UI and send the `AddBuilding` command again, Event Engine still
 complains about a missing command handler. We need to tell Event Engine about our new aggregate and that it is
-responsible for handling `AddBuilding` commands. We can do this in another Event Engine Description in `src/Api/Aggregate`.
+responsible for handling `AddBuilding` commands. We can do this in another Event Engine Description in `src/Domain/Api/Aggregate`.
 
 ```php
 <?php
 
 declare(strict_types=1);
 
-namespace App\Api;
+namespace MyService\Domain\Api;
 
-use App\Model\Building;
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
+use MyService\Domain\Model\Building;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
 
 class Aggregate implements EventEngineDescription
 {
@@ -176,7 +178,7 @@ If we try again to send `AddBuilding` we get a new error:
 
 ```json
 {
-  "error": { 
+  "exception": { 
       "message": "No apply function specified for event: BuildingAdded",
       "details": "..."
     }
