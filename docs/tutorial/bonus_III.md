@@ -498,7 +498,7 @@ class Command implements EventEngineDescription
 
 Finally, the factory can be used in the Port:
 
-`src/Infrastructure/Flavour/AppMssagePort.php`
+`src/System/Flavour/MyServiceMessagePort.php`
 
 ```php
 /**
@@ -980,7 +980,7 @@ class Query implements EventEngineDescription
 
 ```
 
-`src/System/Flavour/AppMssagePort.php`
+`src/System/Flavour/MyServiceMessagePort.php`
 
 ```php
 /**
@@ -1005,7 +1005,7 @@ public function deserialize(Message $message)
 
 To convert our own message types to Event Engine messages we have to implement the `serializePayload` method:
 
-`src/System/Flavour/AppMssagePort.php`
+`src/System/Flavour/MyServiceMessagePort.php`
 
 ```php
 /**
@@ -1045,7 +1045,7 @@ The MessageBag is then passed back to the configured flavour to call a correspon
 the decorated event and pass it to the function. All without serialization in between. A similar approach is used when commands
 are passed to preprocessors or controllers (concepts not included in the tutorial, but you can read about them in the docs).
 
-`src/System/Flavour/AppMssagePort.php`
+`src/System/Flavour/MyServiceMessagePort.php`
 
 ```php
 /**
@@ -1211,7 +1211,7 @@ Do the same for `CheckInUser` and `CheckOutUser`!
 
 Done? Great! Then we can change the Port to handle any `AggregateCommand`:
 
-`src/Infrastructure/Flavour/AppMssagePort.php`
+`src/System/Flavour/MyServiceMessagePort.php`
 
 ```php
 /**
@@ -1239,7 +1239,7 @@ perform advanced validation that is not covered by Json Schema. Read more about 
 Since we don't use one in the building application, we don't really need to implement the method. Let's assume that
 our future command preprocessors will be simple callables:
 
-`src/Infrastructure/Flavour/AppMssagePort.php`
+`src/System/Flavour/MyServiceMessagePort.php`
 
 ```php
 /**
@@ -1287,7 +1287,7 @@ Read more about context providers in the docs (@TODO link docs).
 
 We're implementing a functional Flavour, so we expect a callable context provider passed to the port:
 
-`src/Infrastructure/Flavour/AppMssagePort.php`
+`src/System/Flavour/MyServiceMessagePort.php`
 
 ```php
 /**
@@ -1429,7 +1429,9 @@ final class BuildingResolver implements Resolver
             case $query instanceof GetBuilding:
                 return $this->resolveBuilding($query->buildingId());
             case $query instanceof GetBuildings:
-                return $this->resolveBuildings($query->buildingNameFilter());
+                return $this->resolveBuildings($query->name());
+            default:
+                throw new \RuntimeException("Query not supported. Got " . VariableType::determine($query));
         }
     }
 
@@ -1473,7 +1475,6 @@ declare(strict_types=1);
 namespace MyService\Domain\Resolver;
 
 use EventEngine\DocumentStore\DocumentStore;
-use EventEngine\Messaging\Message;
 use EventEngine\Util\VariableType;
 use MyService\Domain\Resolver\Query\GetUserBuildingList;
 
@@ -1541,101 +1542,139 @@ final class UserBuildingResolver implements Resolver
 
 ```
 
+`src/System/Flavour/MyServiceMessagePort.php`
+
+```php
+public function callResolver($customQuery, $resolver)
+{
+    if(! $resolver instanceof Resolver) {
+        throw new \RuntimeException("Unsupported resolver. Got " . VariableType::determine($resolver));
+    }
+
+    return $resolver->resolve($customQuery);
+}
+```
 
 {.alert .alert-success}
 All methods of the `Functional\Port` are implemented. Good job! But we're not done yet.
 
 ## Switching The Flavour
 
-Event Engine is looking for a Flavour in the app container passed to `EventEngine::initialize()`.
-With a new `flavour` method in the `ServiceFactory` we can provide one.
-
-`src/Service/ServiceFactory.php`
+The flavour is configured in `src/System/SystemServices.php` and can be changed there:
 
 ```php
 <?php
-namespace App\Service;
+declare(strict_types=1);
 
-use App\Infrastructure\Flavour\AppMessagePort;
+namespace MyService\System;
+
+use EventEngine\Data\ImmutableRecordDataConverter;
+use EventEngine\Logger\LogEngine;
+use EventEngine\Logger\SimpleMessageEngine;
+use EventEngine\Messaging\Message;
+use EventEngine\Prooph\V7\EventStore\GenericProophEvent;
 use EventEngine\Runtime\Flavour;
 use EventEngine\Runtime\FunctionalFlavour;
-/* ... */
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
+use MyService\System\Api\EventEngineConfig;
+use MyService\System\Api\SystemQuery;
+use MyService\System\Api\SystemType;
+use MyService\System\Flavour\MyServiceMessagePort;
+use Prooph\Common\Messaging\NoOpMessageConverter;
+use Prooph\ServiceBus\Message\HumusAmqp\AmqpMessageProducer;
+use Psr\Log\LoggerInterface;
 
-final class ServiceFactory
+trait SystemServices
 {
-    use ServiceRegistry;
-
-    /**
-     * @var ArrayReader
-     */
-    private $config;
-
-    /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    public function __construct(array $appConfig)
+    public function systemDescriptions(): array
     {
-        $this->config = new ArrayReader($appConfig);
+        return [
+            SystemType::class,
+            SystemQuery::class,
+            EventEngineConfig::class,
+        ];
     }
 
-    public function setContainer(ContainerInterface $container): void
-    {
-        $this->container = $container;
-    }
-
-    //Flavour
     public function flavour(): Flavour
     {
         return $this->makeSingleton(Flavour::class, function () {
-            return new FunctionalFlavour(
-                new AppMessagePort()
-                /*
-                 * Additionally, inject a custom EventEngine\Data\DataConverter
-                 * if aggregate state does not implement ImmutableRecord!
-                 */
-            );
+            return new FunctionalFlavour(new MyServiceMessagePort(), new ImmutableRecordDataConverter());
         });
     }
 
-    /* ... */
+    public function healthCheckResolver(): HealthCheckResolver
+    {
+        return $this->makeSingleton(HealthCheckResolver::class, function () {
+            return new HealthCheckResolver();
+        });
+    }
+
+    public function logger(): LoggerInterface
+    {
+        return $this->makeSingleton(LoggerInterface::class, function () {
+            $streamHandler = new StreamHandler('php://stderr');
+
+            return new Logger('EventEngine', [$streamHandler]);
+        });
+    }
+
+    public function logEngine(): LogEngine
+    {
+        return new SimpleMessageEngine($this->logger());
+    }
+
+    public function uiExchange(): UiExchange
+    {
+        return $this->makeSingleton(UiExchange::class, function () {
+            $this->assertMandatoryConfigExists('rabbit.connection');
+
+            $connection = new \Humus\Amqp\Driver\AmqpExtension\Connection(
+                $this->config()->arrayValue('rabbit.connection')
+            );
+
+            $connection->connect();
+
+            $channel = $connection->newChannel();
+
+            $exchange = $channel->newExchange();
+
+            $exchange->setName($this->config()->stringValue('rabbit.ui_exchange', 'ui-exchange'));
+
+            $exchange->setType('fanout');
+
+            $humusProducer = new \Humus\Amqp\JsonProducer($exchange);
+
+            $messageProducer = new \Prooph\ServiceBus\Message\HumusAmqp\AmqpMessageProducer(
+                $humusProducer,
+                new NoOpMessageConverter()
+            );
+
+            return new class($messageProducer) implements UiExchange {
+                private $producer;
+                public function __construct(AmqpMessageProducer $messageProducer)
+                {
+                    $this->producer = $messageProducer;
+                }
+
+                public function __invoke(Message $event): void
+                {
+                    $this->producer->__invoke(GenericProophEvent::fromArray([
+                        'uuid' => $event->uuid()->toString(),
+                        'message_name' => $event->messageName(),
+                        'payload' => $event->payload(),
+                        'metadata' => $event->metadata(),
+                        'created_at' => $event->createdAt()
+                    ]));
+                }
+            };
+        });
+    }
 }
 
 ```
 
-Additionally, a service alias is required because Event Engine uses `EventEngine::SERVICE_ID_FLAVOUR` for look ups.
-Such an alias can be defined in `config/container.php` (using the Event Engine Skeleton app):
-
-```php
-<?php
-declare(strict_types = 1);
-
-$config = include 'config.php';
-
-$serviceFactory = new \App\Service\ServiceFactory($config);
-
-//@TODO use cached serviceFactoryMap for production
-$container = new \EventEngine\Container\ReflectionBasedContainer(
-    $serviceFactory,
-    [
-        \EventEngine\EventEngine::SERVICE_ID_EVENT_STORE => \Prooph\EventStore\EventStore::class,
-        \EventEngine\EventEngine::SERVICE_ID_PROJECTION_MANAGER => \Prooph\EventStore\Projection\ProjectionManager::class,
-        \EventEngine\EventEngine::SERVICE_ID_COMMAND_BUS => \App\Infrastructure\ServiceBus\CommandBus::class,
-        \EventEngine\EventEngine::SERVICE_ID_EVENT_BUS => \App\Infrastructure\ServiceBus\EventBus::class,
-        \EventEngine\EventEngine::SERVICE_ID_QUERY_BUS => \App\Infrastructure\ServiceBus\QueryBus::class,
-        \EventEngine\EventEngine::SERVICE_ID_DOCUMENT_STORE => \EventEngine\Persistence\DocumentStore::class,
-        //Flavour alias
-        \EventEngine\EventEngine::SERVICE_ID_FLAVOUR => \EventEngine\Runtime\Flavour::class,
-    ]
-);
-
-$serviceFactory->setContainer($container);
-
-return $container;
-
-```
-
+{.alert .alert-success}
 Everything set up 🎉. Refactoring can start!
 
 ## Refactoring
@@ -1647,7 +1686,7 @@ In a larger project we might want to switch to another Flavour step by step. In 
 uses **PrototypingFlavour** and **FunctionalFlavour** (or OopFlavour) internally together with a mapping of already migrated parts of
 the application.
 
-`src/Model/Building.php`
+`src/Domain/Model/Building.php`
 
 ```php
 <?php
@@ -1714,11 +1753,9 @@ final class Building
 
     public static function whenDoubleCheckOutDetected(Building\State $state, DoubleCheckOutDetected $event): Building\State
     {
-        //No state change required, simply return current state
         return $state;
     }
 }
-
 
 ```
 
@@ -1736,6 +1773,9 @@ use EventEngine\Data\ImmutableRecordLogic;
 final class State implements ImmutableRecord
 {
     use ImmutableRecordLogic;
+    
+    public const BUILDING_ID = 'buildingId';
+    public const NAME = 'name';
 
     /**
      * @var BuildingId
@@ -1827,21 +1867,20 @@ final class State implements ImmutableRecord
 `UserBuildingList` projector now needs to implement the interface `EventEngine\Projecting\CustomEventProjector`
 instead of `EventEngine\Projecting\Projector`:
 
-`src/Infrastructure/Projector/UserBuildingList.php`
+`src/Domain/Projector/UserBuildingList.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Projector;
+namespace MyService\Domain\Projector;
 
-use MyService\Domain\Api\Event;
+use EventEngine\DocumentStore\DocumentStore;
+use EventEngine\Projecting\CustomEventProjector;
 use MyService\Domain\Api\Payload;
+use EventEngine\Projecting\AggregateProjector;
 use MyService\Domain\Model\Building\Event\UserCheckedIn;
 use MyService\Domain\Model\Building\Event\UserCheckedOut;
-use EventEngine\Persistence\DocumentStore;
-use EventEngine\Projecting\AggregateProjector;
-use EventEngine\Projecting\CustomEventProjector;
 
 final class UserBuildingList implements CustomEventProjector
 {
@@ -1855,11 +1894,11 @@ final class UserBuildingList implements CustomEventProjector
         $this->documentStore = $documentStore;
     }
 
-    public function prepareForRun(string $appVersion, string $projectionName): void
+    public function prepareForRun(string $projectionVersion, string $projectionName): void
     {
-        if(!$this->documentStore->hasCollection($this->generateCollectionName($appVersion, $projectionName))) {
+        if(!$this->documentStore->hasCollection(self::generateCollectionName($projectionVersion, $projectionName))) {
             $this->documentStore->addCollection(
-                $this->generateCollectionName($appVersion, $projectionName)
+                self::generateCollectionName($projectionVersion, $projectionName)
             /* Note: we could pass index configuration as a second argument, see docs for details */
             );
         }
@@ -1869,33 +1908,31 @@ final class UserBuildingList implements CustomEventProjector
     {
         $collection = $this->generateCollectionName($appVersion, $projectionName);
 
-        switch (\get_class($event)) {
-            case UserCheckedIn::class:
-                /** @var $event UserCheckedIn */
+        switch (true) {
+            case $event instanceof UserCheckedIn:
                 $this->documentStore->addDoc(
                     $collection,
                     $event->name()->toString(), //Use username as doc id
                     [Payload::BUILDING_ID => $event->buildingId()->toString()]
                 );
                 break;
-            case UserCheckedOut::class:
-                /** @var $event UserCheckedOut */
+            case $event instanceof UserCheckedOut:
                 $this->documentStore->deleteDoc($collection, $event->name()->toString());
                 break;
             default:
                 //Ignore unknown events
         }
     }
-
+    
     public function deleteReadModel(string $appVersion, string $projectionName): void
     {
-        $this->documentStore->dropCollection($this->generateCollectionName($appVersion, $projectionName));
+        $this->documentStore->dropCollection(self::generateCollectionName($appVersion, $projectionName));
     }
 
-    private function generateCollectionName(string $appVersion, string $projectionName): string
+    public static function generateCollectionName(string $projectionVersion, string $projectionName): string
     {
-        //We can use the naming strategy of the aggregate projector for our custom projection, too
-        return AggregateProjector::generateCollectionName($appVersion, $projectionName);
+        //We can use the naming strategy of the aggregate projector for our custom projection
+        return AggregateProjector::generateCollectionName($projectionVersion, $projectionName);
     }
 }
 
@@ -1904,55 +1941,64 @@ final class UserBuildingList implements CustomEventProjector
 The `UiExchange` event listener included in the skeleton application needs to b aligned, too.
 First, the corresponding interface should handle any type of event:
 
-`src/Infrastructure/ServiceBus/UiExchange.php`
+`src/System/UiExchange.php`
 
 ```php
 <?php
-
 declare(strict_types=1);
 
-namespace App\Infrastructure\ServiceBus;
+namespace MyService\System;
 
-use EventEngine\Messaging\Message;
-
-/**
- * Marker Interface UiExchange
- *
- * @package App\Infrastructure\ServiceBus
- */
 interface UiExchange
 {
     public function __invoke($event): void;
 }
+
 ```
 
 Second, an implementation of the interface should handle our event objects. The skeleton simply uses an anonymous class
-to implement the interface. It can be found and changed in the `ServiceFactory`.
+to implement the interface. It can be found and changed in `src/System/SystemServices.php`.
 
 {.alert .alert-warning}
 It's an anonymous class because the UiExchange is only included in the skeleton to demonstrate how events can be pushed
 to a message queue and consumed by a UI. The implementation is not meant to be used in production. You can get some inspiration
 from it, but please work out a production grade solution yourself.
 
-`src/Service/ServiceFactory.php`
-
 ```php
 <?php
-namespace App\Service;
+declare(strict_types=1);
 
-/* ... */
+namespace MyService\System;
 
-final class ServiceFactory
+use EventEngine\Data\ImmutableRecordDataConverter;
+use EventEngine\Logger\LogEngine;
+use EventEngine\Logger\SimpleMessageEngine;
+use EventEngine\Messaging\MessageBag;
+use EventEngine\Prooph\V7\EventStore\GenericProophEvent;
+use EventEngine\Runtime\Flavour;
+use EventEngine\Runtime\FunctionalFlavour;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
+use MyService\Domain\Api\Event;
+use MyService\System\Api\EventEngineConfig;
+use MyService\System\Api\SystemQuery;
+use MyService\System\Api\SystemType;
+use MyService\System\Flavour\MyServiceMessagePort;
+use Prooph\Common\Messaging\NoOpMessageConverter;
+use Prooph\ServiceBus\Message\HumusAmqp\AmqpMessageProducer;
+use Psr\Log\LoggerInterface;
+
+trait SystemServices
 {
     /* ... */
 
     public function uiExchange(): UiExchange
     {
         return $this->makeSingleton(UiExchange::class, function () {
-           $this->assertMandatoryConfigExists('rabbit.connection');
+            $this->assertMandatoryConfigExists('rabbit.connection');
 
             $connection = new \Humus\Amqp\Driver\AmqpExtension\Connection(
-                $this->config->arrayValue('rabbit.connection')
+                $this->config()->arrayValue('rabbit.connection')
             );
 
             $connection->connect();
@@ -1961,7 +2007,7 @@ final class ServiceFactory
 
             $exchange = $channel->newExchange();
 
-            $exchange->setName($this->config->stringValue('rabbit.ui_exchange', 'ui-exchange'));
+            $exchange->setName($this->config()->stringValue('rabbit.ui_exchange', 'ui-exchange'));
 
             $exchange->setType('fanout');
 
@@ -1969,18 +2015,7 @@ final class ServiceFactory
 
             $messageProducer = new \Prooph\ServiceBus\Message\HumusAmqp\AmqpMessageProducer(
                 $humusProducer,
-                new class implements MessageConverter {
-                    public function convertToArray(\Prooph\Common\Messaging\Message $domainMessage): array
-                    {
-                        return [
-                            'uuid' => $domainMessage->uuid()->toString(),
-                            'message_name' => $domainMessage->messageName(),
-                            'payload' => $domainMessage->payload(),
-                            'metadata' => $domainMessage->metadata(),
-                            'created_at' => $domainMessage->createdAt()
-                        ];
-                    }
-                }
+                new NoOpMessageConverter()
             );
 
             $flavour = $this->flavour();
@@ -2002,169 +2037,18 @@ final class ServiceFactory
                         $event
                     );
 
-                    $this->producer->__invoke($this->flavour->prepareNetworkTransmission($messageBag));
+                    $event = $this->flavour->prepareNetworkTransmission($messageBag);
+
+                    $this->producer->__invoke(GenericProophEvent::fromArray([
+                        'uuid' => $event->uuid()->toString(),
+                        'message_name' => $event->messageName(),
+                        'payload' => $event->payload(),
+                        'metadata' => $event->metadata(),
+                        'created_at' => $event->createdAt()
+                    ]));
                 }
             };
         });
-    }
-
-    /* ... */
-}
-
-```
-
-Finally, the two query resolvers should use typed queries:
-
-`src/Infrastructure/Finder/BuildingFinder.php`
-
-```php
-<?php
-declare(strict_types=1);
-
-namespace App\Infrastructure\Finder;
-
-use MyService\Domain\Api\Payload;
-use App\Infrastructure\Finder\Query\GetBuilding;
-use App\Infrastructure\Finder\Query\GetBuildings;
-use EventEngine\Persistence\DocumentStore;
-use React\Promise\Deferred;
-
-final class BuildingFinder
-{
-    /**
-     * @var DocumentStore
-     */
-    private $documentStore;
-
-    /**
-     * @var string
-     */
-    private $collectionName;
-
-    public function __construct(string $collectionName, DocumentStore $documentStore)
-    {
-        $this->collectionName = $collectionName;
-        $this->documentStore = $documentStore;
-    }
-
-    public function __invoke($buildingQuery, Deferred $deferred): void
-    {
-        switch (\get_class($buildingQuery)) {
-            case GetBuilding::class:
-                /** @var $buildingQuery GetBuilding */
-                $this->resolveBuilding($deferred, $buildingQuery->buildingId());
-                break;
-            case GetBuildings::class:
-                /** @var $buildingQuery GetBuildings */
-                $this->resolveBuildings($deferred, $buildingQuery->name());
-                break;
-            default:
-                throw new \InvalidArgumentException("Unknown query. Got "
-                    . (is_object($buildingQuery)? get_class($buildingQuery) : gettype($buildingQuery))
-                );
-        }
-    }
-
-    private function resolveBuilding(Deferred $deferred, string $buildingId): void
-    {
-        $buildingDoc = $this->documentStore->getDoc($this->collectionName, $buildingId);
-
-        if(!$buildingDoc) {
-            $deferred->reject(new \RuntimeException('Building not found', 404));
-            return;
-        }
-
-        $deferred->resolve($buildingDoc);
-    }
-
-    private function resolveBuildings(Deferred $deferred, string $nameFilter = null): array
-    {
-        $filter = $nameFilter?
-            new DocumentStore\Filter\LikeFilter(Payload::NAME, "%$nameFilter%")
-            : new DocumentStore\Filter\AnyFilter();
-
-        $cursor = $this->documentStore->filterDocs($this->collectionName, $filter);
-
-        $deferred->resolve(iterator_to_array($cursor));
-    }
-}
-
-```
-
-{.alert .alert-info}
-You might have noticed that the queries don't use value objects like commands or events. That's because we don't want to couple
-the read model with the write model that much. Simple scalar types are usually enough for queries. Validation is done by Json Schema anyway.
-
-`src/Infrastructure/Finder/UserBuildingFinder.phhp`
-
-```php
-<?php
-declare(strict_types=1);
-
-namespace App\Infrastructure\Finder;
-
-use MyService\Domain\Api\Payload;
-use App\Infrastructure\Finder\Query\GetUserBuildingList;
-use EventEngine\Persistence\DocumentStore;
-use React\Promise\Deferred;
-
-final class UserBuildingFinder
-{
-    /**
-     * @var DocumentStore
-     */
-    private $documentStore;
-
-    /**
-     * @var string
-     */
-    private $userBuildingCollection;
-
-    /**
-     * @var string
-     */
-    private $buildingCollection;
-
-    public function __construct(DocumentStore $documentStore, string $userBuildingCol, string $buildingCol)
-    {
-        $this->documentStore = $documentStore;
-        $this->userBuildingCollection = $userBuildingCol;
-        $this->buildingCollection = $buildingCol;
-    }
-
-    public function __invoke(GetUserBuildingList $query, Deferred $deferred): void
-    {
-        $userBuilding = $this->documentStore->getDoc(
-            $this->userBuildingCollection,
-            $query->name()
-        );
-
-        if(!$userBuilding) {
-            $deferred->resolve([
-                'user' => $query->name(),
-                'building' => null
-            ]);
-            return;
-        }
-
-        $building = $this->documentStore->getDoc(
-            $this->buildingCollection,
-            $userBuilding['buildingId']
-        );
-
-        if(!$building) {
-            $deferred->resolve([
-                'user' => $query->name(),
-                'building' => null
-            ]);
-            return;
-        }
-
-        $deferred->resolve([
-            'user' => $query->name(),
-            'building' => $building
-        ]);
-        return;
     }
 }
 
@@ -2180,86 +2064,32 @@ docker-compose run php php vendor/bin/phpunit
 
 Doesn't look good, right? Let's fix them!
 
-The skeleton provides a `BaseTestCase` and in its `setUp` method we can change the Flavour used during testing.
+`TestCaseAbstract::assertRecordedEvent()` method need to be aligned:
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace AppTest;
+namespace MyServiceTest;
 
-use App\Infrastructure\Flavour\AppMessagePort;
-use PHPUnit\Framework\TestCase;
-use EventEngine\Container\ContainerChain;
-use EventEngine\Container\EventEngineContainer;
+use EventEngine\DocumentStore\DocumentStore;
 use EventEngine\EventEngine;
+use EventEngine\EventStore\EventStore;
+use EventEngine\Logger\DevNull;
+use EventEngine\Logger\SimpleMessageEngine;
 use EventEngine\Messaging\Message;
-use EventEngine\Runtime\FunctionalFlavour;
-
-class BaseTestCase extends TestCase
-{
-    /**
-     * @var EventEngine
-     */
-    protected $eventEngine;
-
-    /**
-     * @var Flavour
-     */
-    protected $flavour;
-
-    protected function setUp()
-    {
-        $this->eventEngine = new EventEngine();
-        $this->flavour = new FunctionalFlavour(new AppMessagePort());
-
-        $config = include __DIR__ . '/../config/autoload/global.php';
-
-        foreach ($config['event_machine']['descriptions'] as $description) {
-            $this->eventEngine->load($description);
-        }
-
-        $this->eventEngine->initialize(
-            new ContainerChain(
-                new FlavourContainer($this->flavour),
-                new EventEngineContainer($this->eventEngine)
-            )
-        );
-    }
-
-    /* ... */
-}
-
-```
-
-The `assertRecordedEvent` method needs an adjustment, too:
-
-```php
-<?php
-declare(strict_types=1);
-
-namespace AppTest;
-
-use App\Infrastructure\Flavour\AppMessagePort;
+use EventEngine\Messaging\MessageProducer;
+use EventEngine\Persistence\InMemoryConnection;
+use EventEngine\Prooph\V7\EventStore\InMemoryMultiModelStore;
+use EventEngine\Util\MessageTuple;
+use MyService\Domain\Api\Event;
+use MyService\ServiceFactory;
+use MyServiceTest\Mock\EventQueueMock;
+use MyServiceTest\Mock\MockContainer;
 use PHPUnit\Framework\TestCase;
-use EventEngine\Container\ContainerChain;
-use EventEngine\Container\EventEngineContainer;
-use EventEngine\EventEngine;
-use EventEngine\Messaging\Message;
-use EventEngine\Runtime\FunctionalFlavour;
 
-class BaseTestCase extends TestCase
+class TestCaseAbstract extends TestCase
 {
-    /**
-     * @var EventEngine
-     */
-    protected $eventEngine;
-
-    /**
-     * @var Flavour
-     */
-    protected $flavour;
-
     /* ... */
 
     protected function assertRecordedEvent(string $eventName, array $payload, array $events, $assertNotRecorded = false): void
@@ -2301,18 +2131,18 @@ The test itself needs minor adjustments, too.
 
 ```php
 <?php
-
 declare(strict_types=1);
 
-namespace AppTest\Integration;
+namespace MyServiceTest\Integration;
 
 use MyService\Domain\Api\Command;
 use MyService\Domain\Api\Event;
 use MyService\Domain\Api\Payload;
-use App\Infrastructure\ServiceBus\UiExchange;
-use AppTest\BaseTestCase;
+use MyService\Domain\Model\Building\Event\DoubleCheckInDetected;
+use MyService\System\UiExchange;
+use MyServiceTest\IntegrationTestCase;
 
-final class NotifySecurityTest extends BaseTestCase
+final class NotifySecurityTest extends IntegrationTestCase
 {
     const BUILDING_ID = '7c5f0c8a-54f2-4969-9596-b5bddc1e9421';
     const BUILDING_NAME = 'Acme Headquarters';
@@ -2322,7 +2152,6 @@ final class NotifySecurityTest extends BaseTestCase
 
     protected function setUp()
     {
-        //The BaseTestCase loads all Event Engine descriptions configured in config/autoload/global.php
         parent::setUp();
 
         //Mock UiExchange with an anonymous class that keeps track of the last received message
@@ -2340,6 +2169,41 @@ final class NotifySecurityTest extends BaseTestCase
                 return $this->lastReceivedMessage;
             }
         };
+
+        // Mocks are passed to EE set up method
+        // The IntegrationTestCase loads all EE descriptions
+        // and uses the configured Flavour (PrototypingFlavour in our case)
+        // to set up Event Engine
+        $this->setUpEventEngine([
+            UiExchange::class => $this->uiExchange,
+        ]);
+
+        /**
+         * We can pass fixtures to the database set up:
+         *
+         * Stream to events map:
+         *
+         * [streamName => Event[]]
+         *
+         * Collection to documents map:
+         *
+         * [collectionName => [docId => doc]]
+         */
+        $this->setUpDatabase([
+            // We use the default write model stream in the buildings app
+            // and add a history for the test building
+            // aggregate state is derived from history automatically during set up
+            $this->eventEngine->writeModelStreamName() => [
+                $this->makeEvent(Event::BUILDING_ADDED, [
+                    Payload::BUILDING_ID => self::BUILDING_ID,
+                    Payload::NAME => self::BUILDING_NAME
+                ]),
+                $this->makeEvent(Event::USER_CHECKED_IN, [
+                    Payload::BUILDING_ID => self::BUILDING_ID,
+                    Payload::NAME => self::USERNAME
+                ]),
+            ]
+        ]);
     }
 
     /**
@@ -2347,39 +2211,23 @@ final class NotifySecurityTest extends BaseTestCase
      */
     public function it_detects_double_check_in_and_notifies_security()
     {
-        $this->eventEngine->bootstrapInTestMode(
-        //Add history events that should have been recorded before current test scenario
-            [
-                $this->message(Event::BUILDING_ADDED, [
-                    Payload::BUILDING_ID => self::BUILDING_ID,
-                    Payload::NAME => self::BUILDING_NAME
-                ]),
-                $this->message(Event::USER_CHECKED_IN, [
-                    Payload::BUILDING_ID => self::BUILDING_ID,
-                    Payload::NAME => self::USERNAME
-                ]),
-            ],
-            //Provide mocked services used in current test scenario, if you forget one the test will throw an exception
-            //You don't have to mock the event store and document store, that is done internally
-            [
-                //Remember, UiExchange is our process manager that pushes events to rabbit
-                //Event Engine is configured to push DoubleCheckInDetected events on to UiExchange (src/Api/Listener.php)
-                UiExchange::class => $this->uiExchange
-            ]
-        );
-
         //Try to check in John twice
-        $checkInJohn = $this->message(Command::CHECK_IN_USER, [
+        $checkInJohn = $this->makeCommand(Command::CHECK_IN_USER, [
             Payload::BUILDING_ID => self::BUILDING_ID,
             Payload::NAME => self::USERNAME
         ]);
 
         $this->eventEngine->dispatch($checkInJohn);
 
-        //After dispatch $this->lastPublishedEvent points to the event received by UiExchange mock
+        //The IntegrationTestCase sets up an in-memory queue (accessible by $this->eventQueue)
+        //You can inspect published events or simply process the queue
+        //so that event listeners get invoked like our mocked UiExchange listener
+        $this->processEventQueueWhileNotEmpty();
+
+        //Now $this->lastPublishedEvent should point to the event received by UiExchange mock
         $this->assertNotNull($this->uiExchange->lastReceivedMessage());
 
-        $this->assertEquals(Event::DOUBLE_CHECK_IN_DETECTED, Event::nameOf($this->uiExchange->lastReceivedMessage()));
+        $this->assertInstanceOf(DoubleCheckInDetected::class, $this->uiExchange->lastReceivedMessage());
 
         $this->assertEquals([
             Payload::BUILDING_ID => self::BUILDING_ID,
@@ -2387,39 +2235,67 @@ final class NotifySecurityTest extends BaseTestCase
         ], $this->uiExchange->lastReceivedMessage()->toArray());
     }
 }
+
 ```
 
-Next on the list is `BuildingTest`. It breaks because we introduced types for building state properties.
-That's going to be an easy fix.
-
-`tests/Model/BuildingTest.php`
+Next on the list is `BuildingTest`.
+`tests/Domain/Model/BuildingTest.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace AppTest\Model;
+namespace MyServiceTest\Domain\Model;
 
+use MyService\Domain\Api\Command;
 use MyService\Domain\Api\Event;
 use MyService\Domain\Api\Payload;
-use AppTest\BaseTestCase;
+use MyServiceTest\UnitTestCase;
 use Ramsey\Uuid\Uuid;
 use MyService\Domain\Model\Building;
 
-class BuildingTest extends BaseTestCase
+final class BuildingTest extends UnitTestCase
 {
-    /* ... */
+    private $buildingId;
+    private $buildingName;
+    private $username;
+
+    protected function setUp()
+    {
+        $this->buildingId = Uuid::uuid4()->toString();
+        $this->buildingName = 'Acme Headquarters';
+        $this->username = 'John';
+
+        parent::setUp();
+    }
 
     /**
      * @test
      */
-    public function it_detects_double_check_in()
+    public function it_checks_in_a_user()
     {
-        /* ... */
+        //Prepare expected aggregate state
+        $state = Building\State::fromArray([
+            Building\State::BUILDING_ID => $this->buildingId,
+            Building\State::NAME => $this->buildingName
+        ]);
 
-        $state = $state->withCheckedInUser(Building\Username::fromString($this->username));
+        //Use test helper UnitTestCase::makeCommand() to construct command
+        $command = Building\Command\CheckInUser::fromArray([
+            Building\State::BUILDING_ID => $this->buildingId,
+            Building\State::NAME => $this->username,
+        ]);
 
-        /* ... */
+        //Aggregate functions yield events, we have to collect them with a test helper
+        $events = $this->collectNewEvents(
+            Building::checkInUser($state, $command)
+        );
+
+        //Another test helper to assert that list of recorded events contains given event
+        $this->assertRecordedEvent(Event::USER_CHECKED_IN, [
+            Payload::BUILDING_ID => $this->buildingId,
+            Payload::NAME => $this->username
+        ], $events);
     }
 }
 
@@ -2428,35 +2304,29 @@ class BuildingTest extends BaseTestCase
 And last adjustments in `UserBuildingListTest::it_manages_list_of_users_with_building_reference()`.
 The projector expects dedicated event objects now.
 
-`tests/Infrastructure/Projector/UserBuildingListTest.php`
+`tests/Domain/Projector/UserBuildingListTest.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace AppTest\Infrastructure\Projector;
+namespace MyServiceTest\Domain\Projector;
 
+use EventEngine\DocumentStore\Filter\AnyFilter;
+use MyService\Domain\Api\Event;
 use MyService\Domain\Api\Payload;
-use App\Infrastructure\Projector\UserBuildingList;
+use MyService\Domain\Api\Projection;
 use MyService\Domain\Model\Building\Event\UserCheckedIn;
 use MyService\Domain\Model\Building\Event\UserCheckedOut;
-use AppTest\BaseTestCase;
-use EventEngine\Persistence\DocumentStore;
-use EventEngine\Persistence\InMemoryConnection;
-use EventEngine\Projecting\AggregateProjector;
+use MyService\Domain\Projector\UserBuildingList;
+use MyServiceTest\UnitTestCase;
 
-final class UserBuildingListTest extends BaseTestCase
+final class UserBuildingListTest extends UnitTestCase
 {
-    const APP_VERSION = '0.1.0';
-    const PROJECTION_NAME = 'user_building_list';
+    const PRJ_VERSION = '0.1.0';
     const BUILDING_ID = '7c5f0c8a-54f2-4969-9596-b5bddc1e9421';
     const USERNAME1 = 'John';
     const USERNAME2 = 'Jane';
-
-    /**
-     * @var DocumentStore
-     */
-    private $documentStore;
 
     /**
      * @var UserBuildingList
@@ -2467,9 +2337,12 @@ final class UserBuildingListTest extends BaseTestCase
     {
         parent::setUp();
 
-        $this->documentStore = new DocumentStore\InMemoryDocumentStore(new InMemoryConnection());
+        //DocumentStore is set up in parent::setUp()
         $this->projector = new UserBuildingList($this->documentStore);
-        $this->projector->prepareForRun(self::APP_VERSION, self::PROJECTION_NAME);
+        $this->projector->prepareForRun(
+            self::PRJ_VERSION,
+            Projection::USER_BUILDING_LIST
+        );
     }
 
     /**
@@ -2477,16 +2350,26 @@ final class UserBuildingListTest extends BaseTestCase
      */
     public function it_manages_list_of_users_with_building_reference()
     {
-        $collection = AggregateProjector::generateCollectionName(self::APP_VERSION, self::PROJECTION_NAME);
+        $collection = UserBuildingList::generateCollectionName(
+            self::PRJ_VERSION,
+            Projection::USER_BUILDING_LIST
+        );
 
         $johnCheckedIn = UserCheckedIn::fromArray([
             Payload::BUILDING_ID => self::BUILDING_ID,
             Payload::NAME => self::USERNAME1
         ]);
 
-        $this->projector->handle(self::APP_VERSION, self::PROJECTION_NAME, $johnCheckedIn);
+        $this->projector->handle(
+            self::PRJ_VERSION,
+            Projection::USER_BUILDING_LIST,
+            $johnCheckedIn
+        );
 
-        $users = iterator_to_array($this->documentStore->filterDocs($collection, new DocumentStore\Filter\AnyFilter()));
+        $users = iterator_to_array($this->documentStore->filterDocs(
+            $collection,
+            new AnyFilter()
+        ));
 
         $this->assertEquals($users, [
             'John' => ['buildingId' => self::BUILDING_ID]
@@ -2497,9 +2380,16 @@ final class UserBuildingListTest extends BaseTestCase
             Payload::NAME => self::USERNAME2
         ]);
 
-        $this->projector->handle(self::APP_VERSION, self::PROJECTION_NAME, $janeCheckedIn);
+        $this->projector->handle(
+            self::PRJ_VERSION,
+            Projection::USER_BUILDING_LIST,
+            $janeCheckedIn
+        );
 
-        $users = iterator_to_array($this->documentStore->filterDocs($collection, new DocumentStore\Filter\AnyFilter()));
+        $users = iterator_to_array($this->documentStore->filterDocs(
+            $collection,
+            new AnyFilter()
+        ));
 
         $this->assertEquals($users, [
             'John' => ['buildingId' => self::BUILDING_ID],
@@ -2511,9 +2401,16 @@ final class UserBuildingListTest extends BaseTestCase
             Payload::NAME => self::USERNAME1
         ]);
 
-        $this->projector->handle(self::APP_VERSION, self::PROJECTION_NAME, $johnCheckedOut);
+        $this->projector->handle(
+            self::PRJ_VERSION,
+            Projection::USER_BUILDING_LIST,
+            $johnCheckedOut
+        );
 
-        $users = iterator_to_array($this->documentStore->filterDocs($collection, new DocumentStore\Filter\AnyFilter()));
+        $users = iterator_to_array($this->documentStore->filterDocs(
+            $collection,
+            new AnyFilter()
+        ));
 
         $this->assertEquals($users, [
             'Jane' => ['buildingId' => self::BUILDING_ID],

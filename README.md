@@ -1,5 +1,5 @@
-# event-machine-docs
-Docs for Event Event Engine
+# event-engine-docs
+Docs for Event Engine
 
 **Please note: Docs are work in progress. They are copied from Event Machine and might contain outdated or wrong information until fully migrated!**
 

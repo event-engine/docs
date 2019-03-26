@@ -13,12 +13,12 @@ Dr. Alan Kay (who has coined the term) had quite a different idea of object-orie
 
 > I thought of objects being like biological cells and/or individual computers on a network, only able to communicate with messages
 
-*[source](http://userpage.fu-berlin.de/~ram/pub/pub_jf47ht81Ht/doc_kay_oop_en)*
+*[source](http://www.purl.org/stefan_ram/pub/doc_kay_oop_en)*
 
 Let that sink in - *only able to communicate with messages*.
 
 If you look at what we've built so far, you might recognize that we are very close to that statement.
-Finder/Resolver, Event Listener, Process Manager and Projector all are invoked with messages. They don't interact with each other directly.
+Resolver, Event Listener, Process Manager and Projector all are invoked with messages. They don't interact with each other directly.
 Event Engine takes over coordination. It's like the network Alan Kay is talking about. But what about aggregate functions?
 The functions are stateless and don't have side effects. They are **pure**. Immutable data types and messages (commands or events) are passed to
 them. With coordination performed by Event Engine pure functions work great.
@@ -54,18 +54,19 @@ only to combine aggregate functions and state. More on that in a minute. First w
 ## OOP Port
 
 Similar to the `Functional\Port` we need to implement an `Oop\Port` to use the **OopFlavour**. Let's start again by looking at the required methods.
-Create a new class `EventSourcedAggregatePort` in `src/Infrastructure/Flavour`:
+Create a new class `EventSourcedAggregatePort` in `src/System/Flavour`:
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Flavour;
+namespace MyService\System\Flavour;
 
 use EventEngine\Runtime\Oop\Port;
 
 final class EventSourcedAggregatePort implements Port
 {
+
     /**
      * @param string $aggregateType
      * @param callable $aggregateFactory
@@ -124,6 +125,17 @@ final class EventSourcedAggregatePort implements Port
     {
         // TODO: Implement reconstituteAggregate() method.
     }
+
+    /**
+     * @param string $aggregateType
+     * @param array $state
+     * @param int $version
+     * @return mixed Aggregate instance
+     */
+    public function reconstituteAggregateFromStateArray(string $aggregateType, array $state, int $version)
+    {
+        // TODO: Implement reconstituteAggregateFromStateArray() method.
+    }
 }
 
 ```
@@ -144,7 +156,7 @@ A state change is first recorded as an event and then applied by the aggregate.
 
 Let's create an interface for the port to rely on:
 
-`src/Model/Base/AggregateRoot.php`
+`src/Domain/Model/Base/AggregateRoot.php`
 
 ```php
 <?php
@@ -183,13 +195,13 @@ interface DomainEvent
 
 With those two interfaces we can implement the first methods of the `Oop\Port`:
 
-`src/Infrastructure/Flavour/EventSourcedAggregatePort.php`
+`src/System/Flavour/EventSourcedAggregatePort.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Flavour;
+namespace MyService\System\Flavour;
 
 use MyService\Domain\Model\Base\AggregateRoot;
 use EventEngine\Runtime\Oop\Port;
@@ -247,7 +259,7 @@ back into shape by passing aggregate event history (all events previously record
 Traits are a great way to reuse code snippets without inheritance. It's like copy and pasting methods from a blueprint into a class. Let's define one for common event sourcing
 logic that we can later use in aggregates.
 
-`src/Model/Base/EventSourced.php`
+`src/Domain/Model/Base/EventSourced.php`
 
 ```php
 <?php
@@ -341,7 +353,7 @@ use `__construct` in aggregate roots but rather use named constructors. This rul
 
 `reconstituteFromHistory` should be called by the `Oop\Port`. But the port works against our `AggregateRoot` interface, so we should add such a method signature there, too.
 
-`src/Model/Base/AggregateRoot.php`
+`src/Domain/Model/Base/AggregateRoot.php`
 
 ```php
 <?php
@@ -365,16 +377,18 @@ interface AggregateRoot
 
 Cool, we can implement the next port method now!
 
-`src/Infrastructure/Flavour/EventSourcedAggregatePort.php`
+`src/System/Flavour/EventSourcedAggregatePort.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Flavour;
+namespace MyService\System\Flavour;
 
-use MyService\Domain\Model\Base\AggregateRoot;
 use EventEngine\Runtime\Oop\Port;
+use MyService\Domain\Api\Aggregate;
+use MyService\Domain\Model\Base\AggregateRoot;
+use MyService\Domain\Model\Building;
 
 final class EventSourcedAggregatePort implements Port
 {
@@ -406,6 +420,83 @@ final class EventSourcedAggregatePort implements Port
 
 ```
 
+### Reconstitute From State Array
+
+The `Oop\Port` contract requires another reconstitute method: `reconstituteAggregateFromStateArray`. It's pretty much the same as `reconstituteAggregate` but this time 
+the aggregate needs to be reconstituted from a state array. Event Engine needs the functionality when it loads aggregate snapshots either taken by the `MultiModelStore`
+or the `AggregateProjector`.
+
+Another method is required in the `AggregateRoot` interface:
+
+`src/Domain/Model/Base/AggregateRoot.php`
+ 
+```php
+<?php
+declare(strict_types=1);
+
+namespace MyService\Domain\Model\Base;
+
+interface AggregateRoot
+{
+    public static function reconstituteFromHistory(DomainEvent ...$domainEvents): self;
+
+    public static function reconstituteFromStateArray(array $state): self;
+
+    /**
+     * @return DomainEvent[]
+     */
+    public function popRecordedEvents(): array;
+
+    public function apply(DomainEvent $event): void;
+}
+
+```
+
+and the corresponding port implementation:
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace MyService\System\Flavour;
+
+use EventEngine\Runtime\Oop\Port;
+use MyService\Domain\Api\Aggregate;
+use MyService\Domain\Model\Base\AggregateRoot;
+use MyService\Domain\Model\Building;
+
+final class EventSourcedAggregatePort implements Port
+{
+    /* ... */
+
+    /**
+     * @param string $aggregateType
+     * @param iterable $events history
+     * @return mixed Aggregate instance
+     */
+    public function reconstituteAggregateFromStateArray(string $aggregateType, array $state, int $version)
+    {
+        $arClass = $this->getAggregateClassOfType($aggregateType);
+
+        // Note: $version is ignored, our aggregate implementation
+        // relies on the version managed by Event Engine internally
+        /** @var AggregateRoot $arClass */
+        return $arClass::reconstituteFromStateArray($state);
+    }
+
+    private function getAggregateClassOfType(string $aggregateType): string
+    {
+        switch ($aggregateType) {
+            case Aggregate::BUILDING:
+                return Building::class;
+            default:
+                throw new \RuntimeException("Unknown aggregate type $aggregateType");
+        }
+    }
+}
+
+```
+
 Obviously, this won't work. We did not touch `Building` yet. Let's do that next.
 
 ## Merge Functions And State
@@ -413,7 +504,7 @@ Obviously, this won't work. We did not touch `Building` yet. Let's do that next.
 Our `Building` aggregate consists of a set of pure functions grouped in a class and immutable data types. Turning it into an event sourced
 object is less work than you might expect:
 
-`src/Model/Building.php`
+`src/Domain/Model/Building.php`
 
 ```php
 <?php
@@ -440,6 +531,13 @@ final class Building implements AggregateRoot
      * @var Building\State
      */
     private $state;
+    
+    public static function reconstituteFromStateArray(array $state): AggregateRoot
+    {
+        $self = new self();
+        $self->state = Building\State::fromArray($state);
+        return $self;
+    }
 
     public static function add(AddBuilding $addBuilding): AggregateRoot
     {
@@ -494,7 +592,6 @@ final class Building implements AggregateRoot
     }
 }
 
-
 ```
 
 Here are the refactoring steps:
@@ -504,6 +601,7 @@ Here are the refactoring steps:
 - `Building` uses `EventSourced`
 - `Building` stores `Building\State` internally in a `state` property
 - `Building::add()` creates an instance of itself and records `BuildingAdded` instead of yielding it
+- `Building::reconstituteFromStateArray` sets up internal state using `Building\State::fromArray()`
 - All other command handling functions:
     - Remove `static`, they become instance methods
     - Change return type to `void`
@@ -518,13 +616,13 @@ Here are the refactoring steps:
 
 `Building::add()` is the aggregate factory for `Building`. The `Oop\Port` can simply call it.
 
-`src/Infrastructure/Flavour/EventSourcedAggregatePort.php`
+`src/System/Flavour/EventSourcedAggregatePort.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Flavour;
+namespace MyService\System\Flavour;
 
 use MyService\Domain\Model\Base\AggregateRoot;
 use EventEngine\Runtime\Oop\Port;
@@ -550,7 +648,7 @@ final class EventSourcedAggregatePort implements Port
 
 The `callable $aggregateFactory` passed to the port, is still the one we've defined in the Event Engine Description:
 
-`src/Api/Aggregate.php`
+`src/Domain/Api/Aggregate.php`
 
 ```php
 <?php
@@ -618,7 +716,7 @@ Looking at `Building` methods, it's exactly what we already have in place ;) We 
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Flavour;
+namespace MyService\System\Flavour;
 
 use MyService\Domain\Model\Base\AggregateRoot;
 use EventEngine\Runtime\Oop\Port;
@@ -647,7 +745,7 @@ final class EventSourcedAggregatePort implements Port
 Low hanging fruits, right? But the Event Engine Aggregate Description is broken! Handle and apply functions are no longer callable (except aggregate factory),
 because they are instance methods now. To get around the issue, we can replace the definition with a `FlavourHint`.
 
-`src/Api/Aggregate.php`
+`src/Domain/Api/Aggregate.php`
 
 ```php
 <?php
@@ -705,57 +803,7 @@ most silly bugs that can cost you hours for nothing!
 
 ## Aggregate State
 
-One method left in the port: `serializeAggregate()`. This method is only important when using aggregate projections.
-Let's check the Projection Description:
-
-`src/Api/Projecion.php`
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace MyService\Domain\Api;
-
-use App\Infrastructure\Projector\UserBuildingList;
-use EventEngine\EventEngine;
-use EventEngine\EventEngineDescription;
-use EventEngine\Persistence\Stream;
-
-class Projection implements EventEngineDescription
-{
-    const USER_BUILDING_LIST = 'user_building_list';
-
-    /**
-     * @param EventEngine $eventEngine
-     */
-    public static function describe(EventEngine $eventEngine): void
-    {
-        $eventEngine->watch(Stream::ofWriteModel())
-            ->withAggregateProjection(Aggregate::BUILDING);
-
-        $eventEngine->watch(Stream::ofWriteModel())
-            ->with(self::USER_BUILDING_LIST, UserBuildingList::class)
-            ->filterEvents([
-                Event::USER_CHECKED_IN,
-                Event::USER_CHECKED_OUT,
-            ]);
-    }
-}
-
-```
-
-Ok, we do use it, so we have to implement the port method, otherwise we could throw a `\BadMethodCallException` and are done.
-
-{.alert .alert-danger}
-A word about aggregate projection: It's a default projection provided by Event Engine for rapid application development.
-With an aggregate projection you can get very close to RAD frameworks that work with relational databases and an ORM.
-The main difference is, with Event Engine you use CQRS / ES from the beginning. However, using aggregate
-state as a read model couples the aggregate with read concerns. It cannot simply change its internal state without
-the risk of breaking a query. The good news is, that you can remove that coupling at any point in time by turning
-an aggregae projection into a dedicated projection like the `USER_BUILDING_LIST` projection. You can start simple,
-but make a cut whenever things start to look messy.
-
+One method left in the port: `serializeAggregate()`. 
 A simple `toArray()` on the aggregate is sufficient. We add it to the `AggregateRoot` interface to enforce its implementation.
 
 `src/Model/Base/AggregateRoot.php`
@@ -782,7 +830,7 @@ interface AggregateRoot
 
 `Building` can call the `toArray` method of `Building\State` ...
 
-`src/Model/Building.php`
+`src/Domain/Model/Building.php`
 
 ```php
 <?php
@@ -823,13 +871,13 @@ final class Building implements AggregateRoot
 
 ... and the `Oop\Port` does the same:
 
-`src/Infrastructure/Flavour/EventSourcedAggregatePort.php`
+`src/System/Flavour/EventSourcedAggregatePort.php`
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace App\Infrastructure\Flavour;
+namespace MyService\System\Flavour;
 
 use MyService\Domain\Model\Base\AggregateRoot;
 use EventEngine\Runtime\Oop\Port;
@@ -863,54 +911,51 @@ final class EventSourcedAggregatePort implements Port
 
 {.alert .alert-info}
 Of course, you can use a totally different serialization strategy. Organising aggregate state in a single immutable state object is also
-only a suggestion. Do whatever you like or don't use aggregate projections at all and don't implement the functionality. It's your choice!
+only a suggestion. Do whatever you like. It's your choice!
 
 ## Activate OopFlavour
 
-As a last step (before looking at the tests 🙈) we should activate the **OopFlavour** in the `ServiceFactory`:
+As a last step (before looking at the tests 🙈) we should activate the **OopFlavour** in `src/System/SystemServices.php`:
 
 `src/Service/ServiceFactory.php`
 
 ```php
 <?php
-namespace App\Service;
+declare(strict_types=1);
 
-use App\Infrastructure\Flavour\AppMessagePort;
+namespace MyService\System;
+
+use EventEngine\Data\ImmutableRecordDataConverter;
+use EventEngine\Logger\LogEngine;
+use EventEngine\Logger\SimpleMessageEngine;
+use EventEngine\Messaging\MessageBag;
+use EventEngine\Prooph\V7\EventStore\GenericProophEvent;
 use EventEngine\Runtime\Flavour;
 use EventEngine\Runtime\FunctionalFlavour;
-/* ... */
+use EventEngine\Runtime\OopFlavour;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
+use MyService\Domain\Api\Event;
+use MyService\System\Api\EventEngineConfig;
+use MyService\System\Api\SystemQuery;
+use MyService\System\Api\SystemType;
+use MyService\System\Flavour\EventSourcedAggregatePort;
+use MyService\System\Flavour\MyServiceMessagePort;
+use Prooph\Common\Messaging\NoOpMessageConverter;
+use Prooph\ServiceBus\Message\HumusAmqp\AmqpMessageProducer;
+use Psr\Log\LoggerInterface;
 
-final class ServiceFactory
+trait SystemServices
 {
-    use ServiceRegistry;
-
-    /**
-     * @var ArrayReader
-     */
-    private $config;
-
-    /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    public function __construct(array $appConfig)
-    {
-        $this->config = new ArrayReader($appConfig);
-    }
-
-    public function setContainer(ContainerInterface $container): void
-    {
-        $this->container = $container;
-    }
-
+    /* ... */
+    
     //Flavour
     public function flavour(): Flavour
     {
         return $this->makeSingleton(Flavour::class, function () {
             return new OopFlavour(
                 new EventSourcedAggregatePort(),
-                new FunctionalFlavour(new AppMessagePort())
+                new FunctionalFlavour(new MyServiceMessagePort(), new ImmutableRecordDataConverter())
             );
         });
     }
@@ -930,73 +975,42 @@ At least the `BuildingTest` should fail after latest changes. Let's see if we ne
 docker-compose run php php vendor/bin/phpunit
 ```
 
-As expected, `BuildingTest` is broken, but should be easy to fix.
-First, we need to change the Flavour in the test suite as well.
-
-`tests/BaseTestCase.php`
+As expected, `BuildingTest` is broken, but should be easy to fix. First let's add a new helper method in `tests/TestCaseAbstract.php`:
 
 ```php
 <?php
 declare(strict_types=1);
 
-namespace AppTest;
+namespace MyServiceTest;
 
-use MyService\Domain\Api\Event;
-use App\Infrastructure\Flavour\AppMessagePort;
-use App\Infrastructure\Flavour\EventSourcedAggregatePort;
-use MyService\Domain\Model\Base\AggregateRoot;
-use MyService\Domain\Model\Base\DomainEvent;
-use PHPUnit\Framework\TestCase;
-use EventEngine\Container\ContainerChain;
-use EventEngine\Container\EventEngineContainer;
+use EventEngine\DocumentStore\DocumentStore;
 use EventEngine\EventEngine;
+use EventEngine\EventStore\EventStore;
+use EventEngine\Logger\DevNull;
+use EventEngine\Logger\SimpleMessageEngine;
 use EventEngine\Messaging\Message;
 use EventEngine\Messaging\MessageBag;
-use EventEngine\Runtime\Flavour;
-use EventEngine\Runtime\FunctionalFlavour;
+use EventEngine\Messaging\MessageProducer;
+use EventEngine\Persistence\InMemoryConnection;
+use EventEngine\Prooph\V7\EventStore\InMemoryMultiModelStore;
 use EventEngine\Runtime\Oop\FlavourHint;
-use EventEngine\Runtime\OopFlavour;
+use EventEngine\Util\MessageTuple;
+use MyService\Domain\Api\Event;
+use MyService\Domain\Model\Base\AggregateRoot;
+use MyService\Domain\Model\Base\DomainEvent;
+use MyService\ServiceFactory;
+use MyServiceTest\Mock\EventQueueMock;
+use MyServiceTest\Mock\MockContainer;
+use PHPUnit\Framework\TestCase;
 
-class BaseTestCase extends TestCase
+class TestCaseAbstract extends TestCase
 {
-    /**
-     * @var EventEngine
-     */
-    protected $eventEngine;
-
-    /**
-     * @var Flavour
-     */
-    protected $flavour;
-
-    protected function setUp()
-    {
-        $this->eventEngine = new EventEngine();
-        $this->flavour = new OopFlavour(
-            new EventSourcedAggregatePort(),
-            new FunctionalFlavour(new AppMessagePort())
-        );
-
-        $config = include __DIR__ . '/../config/autoload/global.php';
-
-        foreach ($config['event_machine']['descriptions'] as $description) {
-            $this->eventEngine->load($description);
-        }
-
-        $this->eventEngine->initialize(
-            new ContainerChain(
-                new FlavourContainer($this->flavour),
-                new EventEngineContainer($this->eventEngine)
-            )
-        );
-    }
-
     /* ... */
 
     protected function applyEvents(AggregateRoot $aggregateRoot)
     {
         array_walk($aggregateRoot->popRecordedEvents(), function (DomainEvent $event) use ($aggregateRoot) {
-            $this->flavour->callApplySubsequentEvent(
+            $this->eventEngine->flavour()->callApplySubsequentEvent(
                 [FlavourHint::class, 'useAggregate'],
                 $aggregateRoot,
                 new MessageBag(
@@ -1021,15 +1035,15 @@ That's the change we have to make in `BuildingTest`:
 <?php
 declare(strict_types=1);
 
-namespace AppTest\Model;
+namespace MyServiceTest\Domain\Model;
 
 use MyService\Domain\Api\Event;
 use MyService\Domain\Api\Payload;
-use AppTest\BaseTestCase;
+use MyServiceTest\UnitTestCase;
 use Ramsey\Uuid\Uuid;
 use MyService\Domain\Model\Building;
 
-class BuildingTest extends BaseTestCase
+final class BuildingTest extends UnitTestCase
 {
     private $buildingId;
     private $buildingName;
@@ -1129,7 +1143,7 @@ class BuildingTest extends BaseTestCase
 At this point the tutorial ends. Thank you for taking the tour through the world of CQRS and Event Sourcing with Event Engine.
 We started our tour with a rapid development approach. Event Engine really shines here. The skeleton application is preconfigured including
 some best practices like splitting Event Engine Descriptions by functionality. We learned how to react on domain events and how
-to project them into a read model, that we can access using queries and finders. All that with a minimum of boilerplate. Finally, Event Engine
+to project them into a read model, that we can access using queries and resolvers. All that with a minimum of boilerplate. Finally, Event Engine
 Flavours gave us a way to write more explicit code and harden the domain model. Every team can find its own style by mixing Flavours, conventions
 and serialization techniques.
 
