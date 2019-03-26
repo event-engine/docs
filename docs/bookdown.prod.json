@@ -15,7 +15,7 @@
     "template": "../template/main.php",
     "target": "./html",
     "numbering": false,
-    "rootHref": "https://event-engine.github.io/event-engine/",
+    "rootHref": "https://event-engine.io/",
     "extensions": {
         "commonmark": [
             "Webuni\\CommonMark\\TableExtension\\TableExtension",
