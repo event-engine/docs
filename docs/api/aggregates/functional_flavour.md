@@ -391,7 +391,7 @@ Mixing **I/O** into the game makes it difficult.
 If we must not query a database or call a remote service in aggregate functions, where do we do it then?
 Well, outside of the **functional core**. The following diagram illustrates that idea.
 
-![Event Engine + Functional Core](img/event_machine_functional_core.png)
+![Event Engine + Functional Core](img/event_engine_functional_core.png)
 
 {.alert .alert-light}
 The diagram shows three layers. The outermost layer is where `I/O` happens. Event Engine acts as a middleware between `I/O` layer and the `functional core`.
@@ -554,7 +554,7 @@ final class ShoppingCart
 ```
 
 {.alert .alert-light}
-*Full example code can be found in the "examples/ContextProvider" dir of the event-machine-docs repository on Github.*
+*Full example code can be found in the "examples/ContextProvider" dir in the event-engine-docs repository on Github.*
 
 ## Write I/O
 

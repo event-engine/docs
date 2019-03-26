@@ -20,29 +20,32 @@ interface EventEngineDescription
 Descriptions need to be loaded **before** `EventEngine::initialize()` is called.
 
 {.alert .alert-info}
-In the skeleton descriptions are listed in [config/autoload/global.php](https://github.com/proophsoftware/event-machine-skeleton/blob/master/config/autoload/global.php#L37){: class="alert-link"}
-and this list is read by the event machine factory method of the ServiceFactory:
+In the skeleton descriptions are listed in [src/Domain/DomainServices.php](https://github.com/event-engine/php-engine-skeleton/blob/master/src/Domain/DomainServices.php#L16){: class="alert-link"}
+and this list is read by the event engine factory method in `src/ServiceFactory`:
 
 ```php
-public function eventEngine(): EventEngine
+public function eventEngine($notInitialized = false): EventEngine
 {
-    $this->assertContainerIsset();
-
-    return $this->makeSingleton(EventEngine::class, function () {
-        $eventEngine = new EventEngine();
-
-        //Load descriptions here or add them to config/autoload/global.php
-        foreach ($this->config->arrayValue('event_machine.descriptions') as $desc) {
-            $eventEngine->load($desc);
+    if($notInitialized) {
+        $eventEngine = new EventEngine(new OpisJsonSchema());
+        foreach ($this->eventEngineDescriptions() as $description) {
+            $eventEngine->load($description);
         }
-
-        $containerChain = new ContainerChain(
-            $this->container,
-            new EventEngineContainer($eventEngine)
+        return $eventEngine;
+    }
+    $this->assertContainerIsset();
+    return $this->makeSingleton(EventEngine::class, function () {
+        //@TODO Load from cached config, if it exists
+        $eventEngine = new EventEngine(new OpisJsonSchema());
+        foreach ($this->eventEngineDescriptions() as $description) {
+            $eventEngine->load($description);
+        }
+        $eventEngine->initialize(
+            $this->flavour(),
+            $this->multiModelStore(),
+            $this->logEngine(),
+            $this->container
         );
-
-        $eventEngine->initialize($containerChain);
-
         return $eventEngine;
     });
 }
