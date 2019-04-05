@@ -9,9 +9,12 @@
 
 /* @var $page \Bookdown\Bookdown\Content\Page */
 $page = $this->page->getRoot();
+
+
+$navClass = $this->page->isRoot()? 'navbar-front' : 'navbar-default';
 ?>
 
-<nav class="navbar navbar-default navbar-fixed-top">
+<nav class="navbar <?php echo $navClass; ?> navbar-fixed-top">
     <div class="box-header container">
         <form class="form-search navbar-form navbar-right" role="search">
             <div class="form-group">

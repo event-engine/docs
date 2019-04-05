@@ -154,7 +154,6 @@
     .btn-get-started:hover {
         background-color: #04c8d7;
         color: white;
-        border-bottom-width: 4px;
         margin-top: 0px;
     }
 
@@ -181,7 +180,7 @@
     }
 
     #forkongithub a:hover {
-        background: #c11;
+        background: #04c8d7;
         color: #fff;
     }
 
@@ -253,6 +252,10 @@
 
     .navbar-default {
         background-color: rgb(0,63,105);
+    }
+
+    .navbar-front {
+        background-color: rgb(243, 243, 243);
     }
 
     .navbar-default .navbar-nav>li>a:hover {
