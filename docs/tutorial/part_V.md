@@ -463,11 +463,10 @@ declare(strict_types=1);
 
 namespace MyService\Domain\Api;
 
-use App\Infrastructure\Finder\BuildingFinder;
-use App\Infrastructure\System\HealthCheckResolver;
 use EventEngine\EventEngine;
 use EventEngine\EventEngineDescription;
 use EventEngine\JsonSchema\JsonSchema;
+use MyService\Domain\Resolver\BuildingResolver;
 
 class Query implements EventEngineDescription
 {
@@ -479,7 +478,7 @@ class Query implements EventEngineDescription
         $eventEngine->registerQuery(self::BUILDING, JsonSchema::object([
             Payload::BUILDING_ID => Schema::buildingId(),
         ]))
-            ->resolveWith(BuildingFinder::class)
+            ->resolveWith(BuildingResolver::class)
             ->setReturnType(Schema::building());
 
         $eventEngine->registerQuery(
@@ -489,7 +488,7 @@ class Query implements EventEngineDescription
                 [Payload::NAME => JsonSchema::nullOr(Schema::buildingNameFilter())]
             )
         )
-            ->resolveWith(BuildingFinder::class)
+            ->resolveWith(BuildingResolver::class)
             ->setReturnType(Schema::buildingList());
     }
 }
