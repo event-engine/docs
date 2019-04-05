@@ -1,5 +1,5 @@
 {
-  "title": "API",
+  "title": "Docs",
   "content": [
     {"set_up": "set-up/bookdown.json"},
     {"descriptions": "descriptions/descriptions.md"},
@@ -8,5 +8,6 @@
     {"document_store": "document-store/bookdown.json"},
     {"projections": "projections/bookdown.json"}
   ],
-  "tocDepth": 1
+  "tocDepth": 1,
+  "numbering": false
 }

@@ -5,5 +5,6 @@
     {"di": "di.md"},
     {"production_optimization": "production_optimization.md"}
   ],
-  "tocDepth": 1
+  "tocDepth": 1,
+  "numbering": false
 }

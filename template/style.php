@@ -17,19 +17,17 @@
         font-weight: 400;
     }
 
+    a {
+        color: #04A1B0;
+    }
+
+    a:hover, a:active {
+        color: #07BDF1;
+        text-decoration: none;
+    }
+
     .dropdown-menu {
         font-size: 17px;
-    }
-
-    .alert-light {
-        color: #818182;
-        background-color: #fefefe;
-    }
-
-    .alert-dark {
-        color: #1b1e21;
-        background-color: #d6d8d9;
-        border-color: #c6c8ca;
     }
 
     .prooph-logo {
@@ -203,6 +201,10 @@
         top: auto;
     }
 
+    .first-row {
+        margin-top: 30px;
+    }
+
     @media screen and (min-width: 800px) {
         #forkongithub {
             position: fixed;
@@ -218,7 +220,7 @@
         #forkongithub a {
             width: 200px;
             position: absolute;
-            top: 80px;
+            top: 85px;
             right: -60px;
             transform: rotate(45deg);
             -webkit-transform: rotate(45deg);
@@ -233,6 +235,10 @@
         .jumbotron {
             margin-top: 60px;
         }
+
+        .first-row {
+            margin-top: 80px;
+        }
     }
 
     @media screen and (max-width: 991px) {
@@ -243,5 +249,60 @@
         .flavour {
             margin-top: 60px;
         }
+    }
+
+    .navbar-default {
+        background-color: rgb(0,63,105);
+    }
+
+    .navbar-default .navbar-nav>li>a:hover {
+        color: #04A1B0;
+        text-decoration: none;
+    }
+
+
+
+    .alert {
+        border-width: 0 0 0 4px;
+        background-color: transparent;
+        color: inherit;
+    }
+
+    .alert-light {
+        border-color: #715671;
+        color: #818182;
+        background-color: #fefefe;
+    }
+
+    .alert-dark {
+        color: #1b1e21;
+        background-color: #d6d8d9;
+        border-color: #c6c8ca;
+    }
+
+    .alert-info {
+        border-color: #04A1B0;
+    }
+
+    .alert-warning {
+        border-color: #EB6842;
+    }
+
+    .alert-error {
+        border-color: #CC3340;
+    }
+
+    .alert-success {
+        border-color: #26896C;
+    }
+
+    .alert .alert-link {
+        color: #04A1B0;
+        text-decoration: none;
+    }
+
+    .alert .alert-link:hover, .alert .alert-link:active {
+        color: #07BDF1;
+        text-decoration: none;
     }
 </style>

@@ -1,6 +1,8 @@
 {
   "title": "News",
   "content": [
+    {"2019-04-05":  "2019-04-05_new_tutorial.md"}
   ],
-  "tocDepth": 1
+  "tocDepth": 1,
+  "numbering": false
 }

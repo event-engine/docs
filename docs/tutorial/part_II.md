@@ -9,11 +9,12 @@ they don't have internal **state** and also **no dependencies**.
 Event Engine can take over the boilerplate and we, as developers, can **focus on the business logic**. I'll explain
 in greater detail later, but first we want to see a **pure aggregate function** in action.
 
-*Note: If you've worked with a CQRS framework before, it's maybe confusing
+{.alert .alert-light}
+*Note*: If you've worked with a CQRS framework before, it's maybe confusing
 because normally a command is handled by a command handler (comparable to an application service that handles a domain action)
 and the command handler would load a business entity or "DDD" aggregate from a repository. We still use the aggregate concept but make
 use of a functional programming approach. It keeps the domain model lean and testable and allows some nice
-optimizations for a RAD infrastructure.*
+optimizations for a RAD infrastructure.
 
 Let's add the first aggregate called `Building` in a new `Model` folder:
 

@@ -14,5 +14,6 @@
     {"bonusIII": "bonus_III.md"},
     {"bonusIV": "bonus_IV.md"}
   ],
-  "tocDepth": 1
+  "tocDepth": 1,
+  "numbering": false
 }

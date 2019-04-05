@@ -4,5 +4,6 @@
     {"about": "about.md"},
     {"pros_and_cons": "pros_and_cons.md"}
   ],
-  "tocDepth": 1
+  "tocDepth": 1,
+  "numbering": false
 }
