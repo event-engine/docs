@@ -1,5 +1,8 @@
 # Functional Flavour
 
+{.alert .alert-important}
+This page is not migrated yet! [Learn more](https://event-engine.io/news/2019-04-05.html#4-1-3){: class="alert-link"}.
+
 > Event Sourced Aggregates are Domain-Driven Aggregates, representing a unit of consistency.
  They protect invariants. This basically means that an aggregate makes sure that it can transition to a new state.
  Different business rules can permit or prevent state transitions, and the aggregate has to enforce these business rules.

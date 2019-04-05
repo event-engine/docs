@@ -288,7 +288,7 @@
         border-color: #EB6842;
     }
 
-    .alert-error {
+    .alert-danger {
         border-color: #CC3340;
     }
 
@@ -304,5 +304,21 @@
     .alert .alert-link:hover, .alert .alert-link:active {
         color: #07BDF1;
         text-decoration: none;
+    }
+
+    .alert.alert-important {
+        border-width: 0 1px 4px 1px;
+        background-color: #CC3340;
+        color: #fff;
+    }
+
+    .alert.alert-important .alert-link {
+        color: #ffffff;
+        text-decoration: underline;
+    }
+
+    .alert.alert-important .alert-link:hover, .alert .alert-link:active {
+        color: #ee374b;
+        text-decoration: underline;
     }
 </style>

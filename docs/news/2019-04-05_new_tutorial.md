@@ -20,7 +20,7 @@ and think you know the basics, I highly recommend to do the new Event Engine tut
 
 ## API Docs
 
-At the time of writing many API docs are still outdated. You'll find a warning at the top of each page that still needs to be migrated.
+At the time of writing, many API docs are still outdated. You'll find a warning at the top of each page that still needs to be migrated.
 
 ## Immutable Objects
 

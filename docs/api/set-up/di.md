@@ -1,5 +1,8 @@
 # Dependency Injection
 
+{.alert .alert-important}
+This page is not migrated yet! [Learn more](https://event-engine.io/news/2019-04-05.html#4-1-3){: class="alert-link"}.
+
 As stated in the *Initialize & Bootstrap* section, Event Engine pulls third-party dependencies from a [PSR-11 container](https://www.php-fig.org/psr/psr-11/).
 It ships with its own 100 LoC container with the code name *Disco Light* (real class name is `ReflectionBasedContainer`).
 The implementation of *Disco Light* is inspired by the design of [bitexpert/disco](https://github.com/bitExpert/disco)

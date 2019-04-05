@@ -1,5 +1,8 @@
 # About Event Engine
 
+{.alert .alert-important}
+This page is not migrated yet! [Learn more](https://event-engine.io/news/2019-04-05.html#4-1-3){: class="alert-link"}.
+
 prooph software Event Engine takes away all the boring, time consuming parts of event sourcing to speed up
 development of event sourced applications and increase the fun. It can be used for prototypes as well as full featured applications.
 

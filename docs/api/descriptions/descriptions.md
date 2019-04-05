@@ -1,5 +1,8 @@
 # Event Engine Descriptions
 
+{.alert .alert-important}
+This page is not migrated yet! [Learn more](https://event-engine.io/news/2019-04-05.html#4-1-3){: class="alert-link"}.
+
 In the previous chapter "Set Up" we already learned that Event Engine loads `EventEngineDescription`s and passes itself as the only argument
 to a static `describe` method.
 

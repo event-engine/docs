@@ -1,5 +1,8 @@
 # Installation
 
+{.alert .alert-important}
+This page is not migrated yet! [Learn more](https://event-engine.io/news/2019-04-05.html#4-1-3){: class="alert-link"}.
+
 {.alert .alert-info}
 Event Engine is not a full stack framework. Instead you integrate it in any PHP framework that supports [PHP Standards Recommendations](https://www.php-fig.org/psr/){: class="alert-link"}.
 
