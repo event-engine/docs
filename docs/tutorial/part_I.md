@@ -121,10 +121,11 @@ Our command cannot be handled because a command handler is missing. In Event Eng
 commands can be routed directly to `Aggregates`.
 In **part II** of the the tutorial you'll learn more about pure aggregates.
 
-*Sum up: Event Engine Descriptions allow you to easily describe the API of your application using messages. The messages get
+{.alert .alert-success}
+Sum up: Event Engine Descriptions allow you to easily describe the API of your application using messages. The messages get
 a unique name and their payload is described with JSON Schema which allow us to add validation rules. The messages and their
 schema are translated to an OpenAPI v3 Schema and we can use Swagger UI to interact with the backend
-service.*
+service.
 
 
 

@@ -402,5 +402,6 @@ Response:
 }
 ```
 
+{.alert .alert-success}
 Throwing an exception is the simplest way to protect invariants. However, with event sourcing we have a different
 (and in most cases) better option. This will be covered in the next part.

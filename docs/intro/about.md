@@ -1,9 +1,6 @@
 # About Event Engine
 
-{.alert .alert-important}
-This page is not migrated yet! [Learn more](https://event-engine.io/news/2019-04-05.html#4-1-3){: class="alert-link"}.
-
-prooph software Event Engine takes away all the boring, time consuming parts of event sourcing to speed up
+Prooph Event Engine takes away all the boring, time consuming parts of event sourcing to speed up
 development of event sourced applications and increase the fun. It can be used for prototypes as well as full featured applications.
 
 ## Origin
@@ -28,7 +25,37 @@ Event Engine Flavours make it possible to turn a rapidly developed prototype int
 You can switch from the default **PrototypingFlavour** to either the **FunctionalFlavour** or **OopFlavour**. Finally, you can implement your own
 Flavour to build your very own CQRS / ES framework.
 
-[Learn More](https://proophsoftware.github.io/event-machine/tutorial/)
+[Learn More](/tutorial/)
+
+## Pros
+
+- Developed and maintained by prooph core team members
+- Ready-to-use [skeleton](https://github.com/event-engine/php-engine-skeleton)
+- Less code to write
+- Guided event sourcing
+- extension points to inject custom logic
+- Audit log from day one (no data loss)
+- Multi-Model-Store 
+- Replay functionality
+- Projections based on domain events
+- PSR friendly http message box
+- OpenAPI v3 Swagger integration
+
+## Cons
+
+- Not suitable for monolithic architectures
+
+### You may want to use Event Engine if:
+
+- Your project is in an early stage and you need to try out different ideas or **deliver features very fast**
+- You want to establish a **Microservices architecture** rather than building a monolithic system
+- You want to automate business processes
+- You have to develop a workflow-oriented service
+- You're **new to the concepts** of CQRS and Event Sourcing and want to learn them
+
+## Conclusion
+
+Try the [tutorial](/tutorial/) and build a prototype with Event Engine!
 
 ## Powered By
 

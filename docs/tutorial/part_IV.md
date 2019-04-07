@@ -502,6 +502,7 @@ referenced using **dot notation** (f.e. "state.name"). If you don't use the Mult
 then you don't need that snapshot format. But remember: without the MultiModelStore you definitely need to deal 
 with eventual consistency whenever reading data from a read model. 
 
+{.alert .alert-success}
 In part VI we get back to the write model and learn how to work with process managers. But before we continue,
 we should clean up our code a bit. Part V describes what we can improve.
 

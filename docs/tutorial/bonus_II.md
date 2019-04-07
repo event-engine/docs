@@ -312,5 +312,7 @@ final class NotifySecurityTest extends IntegrationTestCase
 }
 
 ```
-
+{.alert .alert-success}
+With a solid test suite in place, we can safely start refactoring our code towards a rich domain model. The next bonus part
+introduces stricter types for state and messages.
 

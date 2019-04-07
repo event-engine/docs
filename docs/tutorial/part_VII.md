@@ -227,9 +227,10 @@ about **custom projections** and **testing with Event Engine**.
 And another two bonus parts introduce **Event Engine Flavours**. Choose your own Flavour and maximize personal
 developer experience with Event Engine.
 
-The Event Engine API docs contain a lot more details. Last but not least, a reminder that the prooph software team
-offers commercial project support and workshops for Event Engine and the prooph components.
+The Event Engine API docs contain a lot more details. 
 
+{.alert .alert-success}
+The prooph software team offers commercial project support and workshops for Event Engine and the prooph components.
 Our workshops include Event Storming sessions and guidance on how to turn the results into working prototypes using Event Engine.
 We can also show and discuss framework integrations. Event Engine can easily be integrated with *Symfony*, *Laravel* and
 other PHP web frameworks. The skeleton is based on *Zend Strategility* so you can handle http related tasks, like authentication,

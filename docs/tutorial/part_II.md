@@ -185,6 +185,7 @@ If we try again to send `AddBuilding` we get a new error:
     }
 }
 ```
+{.alert .alert-success}
 Command handling works now but an apply function is missing. In part III of the tutorial you'll learn how to add such a function and why it is needed.
 
 

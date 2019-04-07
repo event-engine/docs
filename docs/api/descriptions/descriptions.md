@@ -1,4 +1,4 @@
-# Event Engine Descriptions
+# Descriptions
 
 {.alert .alert-important}
 This page is not migrated yet! [Learn more](https://event-engine.io/news/2019-04-05.html#4-1-3){: class="alert-link"}.

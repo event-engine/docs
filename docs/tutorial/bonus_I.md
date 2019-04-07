@@ -486,6 +486,8 @@ class Query implements EventEngineDescription
   }
 }
 ```
+
+{.alert .alert-success}
 An hour of work (with a bit more practice even less) and we are ready to ship the new feature! Rapid application development at its best!
 RAD is ok, but please don't skip testing! In the second bonus part of the tutorial we'll learn that Event Engine makes it
 easy to run integration tests. Don't miss it!

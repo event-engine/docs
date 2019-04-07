@@ -46,7 +46,7 @@ final class Building
 }
 ```
 `BuildingAdded` communicates that a new lifecycle of a building was started (new building was added to our system), so the
-`Building::whenBuilidngAdded()` function has to return a new state object and does not receive a current state object
+`Building::whenBuildingAdded()` function has to return a new state object and does not receive a current state object
 as an argument (next when* function will receive one!).
 
 But what does the `State` object look like? Well, you can use whatever you want. Event Engine does not care about a particular
@@ -117,7 +117,7 @@ public ${STATIC} function ${FIELD_NAME}()#if(${RETURN_TYPE}): ${RETURN_TYPE}#els
 #end
 }
 ```
-Now we can return a new `Building\State` from `Building::whenBuilidngAdded()`.
+Now we can return a new `Building\State` from `Building::whenBuildingAdded()`.
 
 ```php
 <?php
@@ -323,7 +323,7 @@ Send the command again:
 
 This time the command goes through. If everything is fine the message box returns a `202 command accepted` response.
  
-{.alert .alert-info} 
+{.alert .alert-success} 
 Event Engine emphasizes a CQRS and Event Sourcing architecture. For commands this means that no data is returned.
 The write model has received and processed the command **AddBuilding** successfully but we don't know what the new
 application state looks like. We will use a query, which is the third message type, to get this data.

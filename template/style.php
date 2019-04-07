@@ -42,6 +42,7 @@
 
     .jumbotron {
        background-color: #04A1B0;
+       margin-top: 60px;
     }
 
     .jumbotron .display-1 {
@@ -231,10 +232,6 @@
     }
 
     @media screen and (max-width: 799px) {
-        .jumbotron {
-            margin-top: 60px;
-        }
-
         .first-row {
             margin-top: 80px;
         }

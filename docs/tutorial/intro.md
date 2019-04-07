@@ -4,24 +4,20 @@ Event Engine is a rapid application development (RAD) framework so let us jump d
 the practical part of the tutorial. Event Engine basic concepts will be explained throughout the tutorial.
 Once finished, you should be able to start with your own project. The API docs will help you along the way.
 
-## Workshops And Commercial Support
-
-Our team can help you to take the first steps and work out a solid foundation for your project based on the power
-and speed offered by Event Engine.
-If you're interested in workshops or commercial support, [get in touch](http://getprooph.org/#get-in-touch).
-
 ## Tutorial Domain
 
 We will build a backend for a small application where you can register `buildings` and then `check in` and `check out`
 users in the buildings. The backend will expose a messagebox endpoint that excepts commands and queries.
 Each time a user is `checked in` or `checked out` we get a notification via a websocket connection.
 
+{.alert .alert-light}
 *Credits: The tutorial domain is the same as the one used by Marco Pivetta in his CQRS and Event Sourcing Workshops.*
 
 ## Application set up
 
 Please make sure you have [Docker](https://docs.docker.com/engine/installation/ "Install Docker") and [Docker Compose](https://docs.docker.com/compose/install/ "Install Docker Compose") installed.
 
+{.alert .alert-warning}
 *Note: Docker is THE ONLY supported set up at the moment. If you don't want to install docker you need PHP 7.2+ and Postgres 9.4+.*
 
 ### Clone Event Engine Skeleton
@@ -57,6 +53,7 @@ user: postgres
 pwd: 
 ``` 
 
+{.alert .alert-info}
 *Note: Credentials are defined in `app.env` and can be changed there.*
 
 You should see three tables: `event_streams`, `projections` and `_<sha1>`. The latter is a table created by `prooph/event-store`.
@@ -81,9 +78,12 @@ You should get a JSON response similar to that one:
 }
 ```
 
+{.alert .alert-success}
 If everything works correctly we are ready to implement our first use case: **Add a building**
 
-*Note: If something is not working as expected (now or later in the tutorial) please check the trouble shooting section of the event-engine/php-engine-skeleton README first.*
+{.alert .alert-danger}
+If something is not working as expected (now or later in the tutorial) please check the trouble shooting section 
+of the [event-engine/php-engine-skeleton README](https://github.com/event-engine/php-engine-skeleton/blob/master/README.md#troubleshooting){: class="alert-link"} first.
 
 
 

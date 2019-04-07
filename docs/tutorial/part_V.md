@@ -494,5 +494,5 @@ class Query implements EventEngineDescription
 }
 
 ```
-
+{.alert .alert-success}
 We're done with the refactoring and ready to add the next use case. Head over to part VI.

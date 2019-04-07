@@ -6,7 +6,8 @@
     {"functional_flavour": "aggregates/functional_flavour.md"},
     {"immutable_state": "state/immutable_state.md"},
     {"document_store": "document-store/bookdown.json"},
-    {"projections": "projections/bookdown.json"}
+    {"projections": "projections/bookdown.json"},
+    {"discolight":  "discolight/discolight.md"}
   ],
   "tocDepth": 1,
   "numbering": false

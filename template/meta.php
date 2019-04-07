@@ -19,6 +19,6 @@
 <link rel="apple-touch-icon-precomposed" href="https://raw.githubusercontent.com/prooph/proophessor/gh-pages/images/ico/apple-touch-icon-57-precomposed.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@prooph_software">
-<meta name="twitter:title" content="Event Machine">
+<meta name="twitter:title" content="Event Engine">
 <meta name="twitter:description" content="Rapid CQRS / ES framework for PHP with a path to refactor towards a richer domain model as needed.">
-<meta name="twitter:image" content="https://proophsoftware.github.io/event-machine/img/Event_Machine_Intro.png">
+<meta name="twitter:image" content="https://event-engine.io/img/Event_Engine_intro.png">

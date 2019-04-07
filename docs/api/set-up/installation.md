@@ -1,42 +1,44 @@
 # Installation
 
-{.alert .alert-important}
-This page is not migrated yet! [Learn more](https://event-engine.io/news/2019-04-05.html#4-1-3){: class="alert-link"}.
-
 {.alert .alert-info}
 Event Engine is not a full stack framework. Instead you integrate it in any PHP framework that supports [PHP Standards Recommendations](https://www.php-fig.org/psr/){: class="alert-link"}.
 
 ## Skeleton
 
-The easiest way to get started is by using the [skeleton](https://github.com/proophsoftware/event-machine-skeleton).
-It ships with a preconfigured Event Engine, a recommended project structure, ready-to-use docker containers and Zend Strategility to handle HTTP requests.
+The easiest way to get started is by using the [skeleton](https://github.com/event-engine/php-engine-skeleton).
+It ships with a preconfigured Event Engine, a recommended project structure, ready-to-use docker containers and [Zend Strategility](https://github.com/zendframework/zend-stratigility) to handle HTTP requests.
 
 {.alert .alert-light}
-The skeleton is not the only way to set up Event Engine. You can tweak set up as needed and integrate Event Engine with Symfony, Laravel or any other framework
+*Again*: The skeleton is not the only way to set up Event Engine. You can tweak set up as needed and integrate Event Engine with Symfony, Laravel or any other framework
 or middleware dispatcher.
 
 ## Required Infrastructure
 
-Event Engine is based on **PHP 7.1 or higher**. Package dependencies are installed using [composer](https://getcomposer.org/).
+Event Engine is based on **PHP 7.2 or higher**. Package dependencies are installed using [composer](https://getcomposer.org/).
 
 ### Database
 
-Event Engine uses [prooph/event-store](http://docs.getprooph.org/event-store/) to store **events** recorded by the **write model**
+By default Event Engine uses [prooph/event-store](http://docs.getprooph.org/event-store/) to store **events** recorded by the **write model**
 and a **DocumentStore** (see "Document Store" chapter) to store the **read model**.
 
-{.alert .alert-light}
+{.alert .alert-info}
 The skeleton uses prooph's Postgres event store
-and a [Postgres Document Store](https://github.com/proophsoftware/postgres-document-store) implementation.
-This allows Event Engine to work with a single database, but that's not a requirement. You can mix and match as needed and also use
-a storage mechanism not implementing the document store interface by using custom projections (more on that in the "projections" chapter).
+and a [Postgres Document Store](https://github.com/event-engine/php-postgres-document-store){: class="alert-link"} implementation.
+This allows Event Engine to work with a single database, but that's not a requirement. You can mix and match. Event Engine defines a lean
+event store interface, that can be found in the [event-engine/php-event-store](https://github.com/event-engine/php-event-store/blob/master/src/EventStore.php) package.
+Projections don't have a hard dependency on the document store, either. A document store is only required when using the **MultiModelStore** feature or the default **aggregate projection**.
+Other than that, you can use whatever you want to persist the read model.
 
 #### Creating The Event Stream
 
-All events are stored in a single stream. You cannot change this strategy **and prooph/event-store has to be set up with the SingleStreamStrategy!**
+By default all events are stored in a single stream and **prooph/event-store has to be set up with the SingleStreamStrategy!**
 The reason for this is that projections rely on a guaranteed order of events.
-A single stream is the only way to fulfill this requirement. When using a relational database as an event store a single
+A single stream is the only way to fulfill this requirement. 
+
+{.alert .alert-light}
+When using a relational database as an event store a single
 table is also very efficient. A longer discussion about the topic can be found
-in the [prooph/pdo-event-store repo](https://github.com/prooph/pdo-event-store/issues/139).
+in the [prooph/pdo-event-store repo](https://github.com/prooph/pdo-event-store/issues/139){: class="alert-link"}.
 
 An easy way to create the needed stream is to use the event store API directly.
 
@@ -44,34 +46,43 @@ An easy way to create the needed stream is to use the event store API directly.
 <?php
 declare(strict_types=1);
 
-namespace Prooph\EventEngine;
+namespace EventEngine;
 
 use ArrayIterator;
 use Prooph\EventStore\EventStore;
 use Prooph\EventStore\Stream;
 use Prooph\EventStore\StreamName;
 
+chdir(dirname(__DIR__));
+
 require_once 'vendor/autoload.php';
 
 $container = require 'config/container.php';
 
 /** @var EventStore $eventStore */
-$eventStore = $container->get('EventEngine.EventStore');
+$eventStore = $container->get(EventStore::class);
 $eventStore->create(new Stream(new StreamName('event_stream'), new ArrayIterator()));
 
 echo "done.\n";
+
 ```
 
-Such a [script](https://github.com/proophsoftware/event-machine-skeleton/blob/master/scripts/create_event_stream.php) is used in the skeleton.
+Such a [script](https://github.com/event-engine/php-engine-skeleton/blob/master/scripts/create_event_stream.php) is used in the skeleton.
 As you can see we request the event store from a container that we get from a config file. The skeleton uses [Zend Strategility](https://github.com/zendframework/zend-stratigility)
-and this is a common approach in Strategility (and Zend Expressive) based applications. If you want to use another framework, adopt the script accordingly.
+and this is a common approach in Strategility (and Zend Expressive) based applications. 
+
+{.alert .alert-light}
+If you want to use another framework, adopt the script accordingly.
 The only thing that really matters is that you get a configured prooph/event-store from the [PSR-11 container](https://www.php-fig.org/psr/psr-11/)
 used by Event Engine.
 
 #### Read Model Storage
 
-Read Model storage is set up on the fly. You don't need to prepare it upfront, but you can if you prefer to work with a database migration tool. It is up to you.
-Learn more about read model storage set up in the projections chapter.
+Projection storage is set up on the fly. You don't need to prepare it upfront, but you can if you prefer to work with a database migration tool. It is up to you.
+Learn more about read model storage set up in the projections chapter. 
+
+{.alert .alert-warning}
+The **Multi-Model-Store** requires existing read model collections. Please find a detailed explanation in [the tutorial](/tutorial/partIII.html#2-4-2). 
 
 ## Event Engine Descriptions
 
@@ -102,6 +113,7 @@ declare(strict_types=1);
 
 
 namespace App\Api;
+
 use Prooph\EventEngine\EventEngine;
 use Prooph\EventEngine\EventEngineDescription;
 
@@ -135,29 +147,31 @@ declare(strict_types=1);
 
 require_once 'vendor/autoload.php';
 
-$eventEngine = new EventEngine();
+$eventEngine = new EventEngine(
+    new OpisJsonSchema() /* Or another Schema implementation */
+);
 
 $eventEngine->load(App\Api\Command::class);
 
 ```
 
+{.alert .alert-light}
+Event Engine only requires a `EventEngine\Schema\Schema` implementation in the constructor. All other dependencies are passed during **initialize** phase (see next section).
+
 ## Initialize & Bootstrap
 
-Event Engine is bootstrapped in three phases. *Descriptions* are loaded first, followed by a `$eventEngine->initialize($container, $appVersion)` call.
-Finally, `$eventEngine->bootstrap($environment, $debugMode)` prepares the system so that it can handle incoming messages.
+Event Engine is bootstrapped in three phases. **Descriptions** are loaded first, followed by a `$eventEngine->initialize(/* dependencies */)` call.
+Finally, `$eventEngine->bootstrap($env, $debugMode)` prepares the system so that it can handle incoming messages.
 
-{.alert .alert-light}
-Bootstrapping is split because the description and initialization phases can be skipped in production.
-Read more about this in "Optimize for production" chapter.
+{.alert .alert-info}
+Bootstrapping is split because description and initialization phase can be skipped in production.
+Read more about this in [Production Optimization](/api/set-up/production_optimization.html).
 
 ### Initialize
 
-Before caching of the configuration is possible Event Engine needs to aggregate information from all *Descriptions*.
-This is done in the *Initialize phase*. The phase also requires a PSR-11 container that can be used by Event Engine to get third-party services.
-See section about dependency injection for details.
-
-The second argument of the `initialize` method is a string representing the application version. It defaults to `0.1.0`. The application version
-comes into play when organizing projections. More details can be found in the projections chapter.
+Event Engine needs to aggregate information from all **Descriptions**.
+This is done in the *Initialize phase*. The phase also requires mandatory and optional dependencies used by Event Engine.
+Details are listed on the [Dependencies](/api/set-up/di.html) page.
 
 ### Bootstrap
 
@@ -170,7 +184,6 @@ You have to take care of this when setting up services. Event Engine just provid
 ```
 Environment: $eventEngine->env(); // prod | dev | test
 Debug Mode: $eventEngine->debugMode(); // bool
-App Version: $eventEngine->appVersion(): // string -> default: 0.1.0
 ```
 
 
