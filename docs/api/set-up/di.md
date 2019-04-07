@@ -20,7 +20,7 @@ further information.
 [event-engine/php-json-schema](#){: class="alert-link"} (@TODO add link) provides a JSON Schema implementation of `EventEngine\Schema\Schema`.
 
 {.alert .alert-light}
-A Schema implementation is the only dependency required in the constructor. Event Engine needs the schema to validate message schema defined in the **description phase**.
+A Schema implementation is the only dependency required in the constructor. Event Engine needs it to validate message schema defined in the **description phase**.
 All other dependencies are first required when initializing Event Engine. `EventEngine::fromCachedConfig()` skips **description phase** and **initialize phase**, therefor
 it requires all dependencies along with the cached config.
 
@@ -37,7 +37,7 @@ Learn more about [Flavours](#) (@TODO add link).
 {.alert .alert-warning}
 **Mandatory Dependency**
 
-Event Engine inspects the event store dependency. If you provide an `EventEngine\EventStore\EventStore` only, the **MultiModeStore** mode gets disabled.
+Event Engine inspects the event store dependency. If you provide a plain `EventEngine\EventStore\EventStore`, the **MultiModeStore** mode gets disabled.
 If you pass a `EventEngine\Persistence\MultiModelStore` instead, Event Engine makes use of it automatically.
 
 {.alert .alert-light}

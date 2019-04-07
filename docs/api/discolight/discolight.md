@@ -17,7 +17,7 @@ composer require event-engine/discolight
 
 ## Service Factory
 
-A practical example explains intended usage best. If you walked your way through the tutorial, you already know about Discolight. The [skeleton app](https://github.com/event-engine/php-engine-skeleton)
+If you walked your way through the tutorial, you already know about Discolight. The [skeleton app](https://github.com/event-engine/php-engine-skeleton)
 comes preconfigured with it.
 
 You're asked to provide a `ServiceFactory`, that contains a public factory method for each dependency. 
@@ -68,7 +68,7 @@ In most cases we want to get the same instance of a service from the container n
 Discolight is dead simple. It does not know anything about singletons. Instead we use a pattern called [memoization](https://en.wikipedia.org/wiki/Memoization)
 to cache the instance of a service in memory and return it from cache on subsequent calls.
 
-The `ServiceFactory` is a complete userland implementation. No interface needs to be implemented. To add memoization to your service factory you can use the provided
+The `ServiceFactory` is userland implementation. No interface implementation required. To add memoization to your service factory use the provided
 trait `EventEngine\Discolight\ServiceRegistry` like it is done in the skeleton service factory.
 
 ```php
