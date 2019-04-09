@@ -1,7 +1,4 @@
-# Functional Flavour
-
-{.alert .alert-important}
-This page is not migrated yet! [Learn more](https://event-engine.io/news/2019-04-05.html#4-1-3){: class="alert-link"}.
+# Functional Core
 
 > Event Sourced Aggregates are Domain-Driven Aggregates, representing a unit of consistency.
  They protect invariants. This basically means that an aggregate makes sure that it can transition to a new state.
@@ -14,7 +11,7 @@ This page is not migrated yet! [Learn more](https://event-engine.io/news/2019-04
 Event Engine supports three programming styles out-of-the-box: **OopFlavour, PrototypingFlavour and FunctionalFlavour**.
 
 On this page we focus on the Prototyping and Functional Flavour. Both follow the same idea of a **functional core**.
-vent Sourcing is heavily based on functional patterns:
+Event Sourcing is heavily based on functional patterns:
 *immutable events*, *append-only streams*, *left fold of past events to calculate current state*, ...
 
 {.alert .alert-info}
@@ -23,8 +20,9 @@ The difference between Prototyping and Functional is that the **PrototypingFlavo
 If you're curious how you can switch to another Flavour, then check out the Event Engine tutorial. It covers all three
 Flavours in detail.
 
+{.alert .alert-success}
 **Event Engine grows with your application from prototype to MVP up to a rock solid production system**.
-And it is able to reduce boilerplate code to a bare minimum because of a few "simple" rules:
+And it is able to reduce boilerplate code to a bare minimum. You have to follow some rules, though:
 
 ## 1. Pure Functions
 
@@ -41,7 +39,7 @@ declare(strict_types=1);
 
 Namespace Acme\Model\SomeBusinessProcess;
 
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 use Acme\Api\Event;
 
 const startProcess = '\Acme\SomeBusinessProcess\startProcess';
@@ -63,7 +61,7 @@ declare(strict_types=1);
 
 Namespace Acme\Model;
 
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 use Acme\Api\Event;
 
 final class SomeBusinessProcess
@@ -79,10 +77,10 @@ final class SomeBusinessProcess
 ```
 
 As you can see both approaches are very similar. The *prooph/micro* style looks more functional and underlines the intention of the code whereby the
-*static method* approach plays nice together with a modern IDE and PHP's autoloader. We'll stick to the static method approach in the examples because this is
+*static method* approach plays nice together with a modern IDE and PHP's autoloading. We'll stick to the static method approach in the examples because this is
 the recommended style when working with Event Engine. But *prooph/micro* style can be used, too!
 
-Back to the **pure** nature of both approaches. No matter how often you call the function as long as the input message payload does not change, the yielded
+Back to the **pure** nature of both approaches. No matter how often you call the function as long as the input message does not change, the yielded
 event won't change, too.
 
 {.alert .alert-info}
@@ -96,7 +94,7 @@ No object, no internal state and therefor a much simpler business logic implemen
 But even if we use functions, we have to be careful to not fall into the trap of modifying state:
 
 {.alert .alert-danger}
-### Evil Global Variable
+**Evil Global Variable**
 
 One way to break the rule with a function is by modifying global state.
 
@@ -107,7 +105,7 @@ declare(strict_types=1);
 
 Namespace Acme\Model;
 
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 use Acme\Api\Event;
 
 $evilState = new EvilState();
@@ -131,7 +129,7 @@ final class SomeBusinessProcess
 **Never ever do this!** Don't even think about it!
 
 {.alert .alert-danger}
-### Evil Static Property
+**Evil Static Property**
 
 Another way to break our stateless function:
 
@@ -142,7 +140,7 @@ declare(strict_types=1);
 
 Namespace Acme\Model;
 
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 use Acme\Api\Event;
 
 final class SomeBusinessProcess
@@ -156,7 +154,7 @@ final class SomeBusinessProcess
         yield [Event::SOME_PROCESS_STARTED, $startProcess->payload()];
     }
 
-    public static funcion continueProcess(Message $continue): \Generator
+    public static function continueProcess(Message $continue): \Generator
     {
         yield [Event::SOME_PROCESS_CONTINUED, self::$evilState->toArray()];
     }
@@ -167,7 +165,7 @@ final class SomeBusinessProcess
 ```
 
 {.alert .alert-danger}
-### Evil Static Local Variable
+**Evil Static Local Variable**
 
 That's also a very bad idea:
 
@@ -178,7 +176,7 @@ declare(strict_types=1);
 
 Namespace Acme\Model;
 
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 use Acme\Api\Event;
 
 final class SomeBusinessProcess
@@ -188,7 +186,7 @@ final class SomeBusinessProcess
         yield [Event::SOME_PROCESS_STARTED, $startProcess->payload()];
     }
 
-    public static funcion continueProcess(Message $continue): \Generator
+    public static function continueProcess(Message $continue): \Generator
     {
         static $evilCounter;
 
@@ -205,7 +203,7 @@ final class SomeBusinessProcess
 ```
 
 {.alert .alert-danger}
-### Evil Mutable State Passed As Argument
+**Evil Mutable State Passed As Argument**
 
 Mutable state passed as an argument is probably the easiest way to break the stateless rule. Let's look at an evil example first and then we'll see how we
 can do better.
@@ -217,7 +215,7 @@ declare(strict_types=1);
 
 Namespace Acme\Model;
 
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 use Acme\Api\Event;
 
 final class SomeBusinessProcess
@@ -249,7 +247,7 @@ declare(strict_types=1);
 
 Namespace Acme\Model;
 
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 use Acme\Api\Event;
 use Acme\Api\Payload;
 
@@ -314,7 +312,7 @@ final class ImmutableState
 
 ```
 
-This is how state of an immutable value object is changed. Instead of modifying internal state directly, the value object copies itself and modfies the copy
+This is how state of an immutable object is changed. Instead of modifying internal state directly, the value object copies itself and modifies the copy
 instead.
 
 {.alert .alert-light}
@@ -332,7 +330,7 @@ use Acme\Api\Payload;
 use Acme\Model\SomeBusinessProcess;
 use Acme\Model\ImmutableState;
 use AcmeTest\BaseTestCase; //<-- extends PHPUnit\Framework\TestCase + provides message factory
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 
 final class SomeBusinessProcessTest extends BaseTestCase
 {
@@ -376,8 +374,8 @@ You can harden the system With simple tests, pave the way for refactorings and k
 Event Engine also has an easy job. It does not need to care about state changes, because they are fully managed in userland code.
 This means, that you have full control. **No object mapping layer required, no dirty state and no unit of work.**
 
-{.alert .alert-light}
-The "Immutable State" chapter provides a lot of tips and tricks to rapidly create and work with immutable value objects.
+{.alert .alert-info}
+The [Immutable State](/api/immutable_state.html) chapter provides a lot of tips and tricks to rapidly create and work with immutable value objects.
 
 ## 3. Side-Effect Free Functions
 
@@ -408,9 +406,9 @@ That's the preferred way to perform read I/O to query data needed by the aggrega
 
 declare(strict_types=1);
 
-namespace Prooph\EventEngine\Aggregate;
+namespace EventEngine\Aggregate;
 
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 
 interface ContextProvider
 {
@@ -423,12 +421,12 @@ interface ContextProvider
 
 ```
 
-{.alert .alert-dark}
+{.alert .alert-info}
 Let's say we have a shopping cart aggregate that processes **AddItem** commands.
 The command payload only contains the **itemId** but we also need the **price** of the item
 to enable **free shipping** if a certain order sum is reached.
 
-{.alert .alert-light}
+{.alert .alert-info}
 Context Provider: uses a price finder to get item price from a **database** and sets up a free shipping policy with 40,- € (4000 Cent) as minimum order sum.
 
 ```php
@@ -438,8 +436,8 @@ declare(strict_types=1);
 
 namespace ProophExample\ContextProvider;
 
-use Prooph\EventEngine\Aggregate\ContextProvider;
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Aggregate\ContextProvider;
+use EventEngine\Messaging\Message;
 use ProophExample\ContextProvider\Api\Payload;
 use ProophExample\ContextProvider\Policy\FreeShipping;
 use ProophExample\ContextProvider\ShoppingCart\AddItemContext;
@@ -469,7 +467,7 @@ final class AddItemContextProvider implements ContextProvider
 
 ```
 
-{.alert .alert-light}
+{.alert .alert-info}
 Command Processing Description: **AddItemContextProvider service id** (FQCN) is passed to provideContext.
 
 ```php
@@ -479,8 +477,8 @@ declare(strict_types=1);
 
 namespace ProophExample\ContextProvider\Api;
 
-use Prooph\EventEngine\EventEngine;
-use Prooph\EventEngine\EventEngineDescription;
+use EventEngine\EventEngine;
+use EventEngine\EventEngineDescription;
 use ProophExample\ContextProvider\AddItemContextProvider;
 use ProophExample\ContextProvider\ShoppingCart;
 
@@ -504,7 +502,7 @@ final class Aggregate implements EventEngineDescription
 
 ```
 
-{.alert .alert-light}
+{.alert .alert-info}
 Shopping Cart Aggregate: receives **AddItemContext** as third argument in the **addItem** function
 
 ```php
@@ -514,7 +512,7 @@ declare(strict_types=1);
 
 namespace ProophExample\ContextProvider;
 
-use Prooph\EventEngine\Messaging\Message;
+use EventEngine\Messaging\Message;
 use ProophExample\ContextProvider\Api\Event;
 use ProophExample\ContextProvider\Api\Payload;
 use ProophExample\ContextProvider\ShoppingCart\AddItemContext;
@@ -556,20 +554,18 @@ final class ShoppingCart
 
 ```
 
-{.alert .alert-light}
-*Full example code can be found in the "examples/ContextProvider" dir in the event-engine-docs repository on Github.*
-
 ## Write I/O
 
 Event Engine appends all yielded events to the `write model event stream`. You don't need to care about that.
-Read model updates are performed by projections (see "Projections" chapter) and all other Write I/O should happen in event listeners (see "Event Listeners" chapter).
+Read model updates are performed by projections (@TODO add link) or the Multi-Model-Store (@TODO add link) 
+and all other Write I/O should happen in event listeners (@TODO add link).
 
 {.alert .alert-warning}
 Aggregate functions should NEVER perform any write operation directly but only yield events to trigger Write I/O in the outermost layer.
 
 ## Aggregate Lifecycle
 
-{.alert .alert-light}
+{.alert .alert-warning}
 If an aggregate is composed of pure functions and those functions work with immutable state only, does the aggregate have a lifecycle?
 
 Yes! An aggregate has a lifecycle. It is just not implemented as an object that changes internal state over time.
@@ -605,9 +601,11 @@ $eventEngine->process(Command::START_SHOPPING_SESSION)
     ->handle([ShoppingCart::class, 'startShoppingSession'])
 ```
 
-Given the information above, Event Engine knows that the aggregae function `ShoppingCart::startShoppingSession()`
-only takes a `StartShoppingSession` command as argument. Aggregate state doesn't exist at this time
-because it's the first command.
+Given the information above, Event Engine knows that the aggregate function `ShoppingCart::startShoppingSession()`
+only takes a `StartShoppingSession` command as argument. 
+
+{.alert .alert-light}
+Aggregate state doesn't exist at this time because it's the first command.
 
 ```php
 <?php
@@ -631,7 +629,7 @@ Event Engine will append the yielded `ShoppingSessionStarted` event to its `writ
 of a new shopping cart lifecycle.
 
 Every yielded event should have a corresponding **apply function**. Event Engine takes care of that rule.
-It's the last part of every `CommandProcessingDescription`.
+It's the last part of every [CommandProcessingDescription](/api/descriptions.html#3-2-4).
 
 ```php
 $eventEngine->process(Command::START_SHOPPING_SESSION)
@@ -691,7 +689,9 @@ $eventEngine->process(Command::ADD_ITEM)
         ->apply([ShoppingCart::class, 'whenFreeShippingEnabled']);
 ```
 
-It's not required that all events are yielded each time. The main thing is that Event Engine knows about them all.
+{.alert .alert-light}
+It's not required that all events are yielded each time. The important thing is that Event Engine knows about them all.
+
 In some situations an aggregate function does not want to yield any new event. In such a case you can `yield null` and return from the function.
 
 
@@ -720,6 +720,4 @@ final class ShoppingCart
 
 {.alert .alert-info}
 **Wrap UP:** Aggregates in Event Engine are composed of pure functions and immutable state (when using Prototyping or Functional Flavour). Command Processing Descriptions tell Event Engine how the pieces fit
-together. This reduces boilerpate code and we can focus on the domain and avoid silly bugs that interrupt our model exploration.
-
-In the next chapter you'll learn how immutable value objects can be generated quickly.
+together. This reduces boilerplate code and we can focus on the domain and avoid silly bugs that interrupt our model exploration.

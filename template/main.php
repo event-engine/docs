@@ -47,7 +47,7 @@ $templates->set('navfooter', __DIR__ . '/navfooter.php');
 $templates->set('toc', $templatePath . '/toc.php');
 $templates->set('partialTopNav', __DIR__  . '/partial/topNav.php');
 $templates->set('partialBreadcrumb', $templatePath . '/partial/breadcrumb.php');
-$templates->set('partialSideNav', $templatePath . '/partial/sideNav.php');
+$templates->set('partialSideNav',  __DIR__ . '/partial/sideNav.php');
 ?>
 
 <!DOCTYPE html>

@@ -3,12 +3,12 @@
   "content": [
     {"set_up": "set-up/bookdown.json"},
     {"descriptions": "descriptions/descriptions.md"},
-    {"functional_flavour": "aggregates/functional_flavour.md"},
+    {"functional_core": "aggregates/functional_core.md"},
     {"immutable_state": "state/immutable_state.md"},
     {"document_store": "document-store/bookdown.json"},
     {"projections": "projections/bookdown.json"},
     {"discolight":  "discolight/discolight.md"}
   ],
-  "tocDepth": 1,
+  "tocDepth": 3,
   "numbering": false
 }

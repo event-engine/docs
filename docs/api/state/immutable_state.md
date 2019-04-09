@@ -4,8 +4,8 @@ Using immutable objects whenever possible results in robust implementations. Fun
 Using value objects instead of raw data structures like arrays or plain strings adds type safety, acts as documentation and makes code much more 
 readable. All very important properties for long-lived applications that are constantly reshaped.
 
-The `EventEngine\Data` package provides useful helpers to speed up development of immutable objects. In fact, when using the Prototyping or Functional
-Flavour **all application state should be immutable**. 
+The [EventEngine\Data](https://github.com/event-engine/php-data) package provides useful helpers to speed up development of immutable objects. 
+In fact, when using the Prototyping or Functional Flavour **all application state should be immutable**. 
 
 {.alert .alert-warning}
 For the OOP Flavour the only exception are Aggregate Roots. But even then it's recommended
@@ -30,7 +30,7 @@ Keep in mind that both FPP and EventEngine\Data are only suggestions. You don't 
 The `EventEngine\Data` package contains a set of live templates specifically designed to work together with the `EventEngine\Data\ImmutableRecord`. 
 
 You can import the templates by following official [PHPStorm instructions](https://www.jetbrains.com/help/phpstorm/sharing-live-templates.html).
-Please find the `settings.zip` [here](https://github.com/event-engine/php-engine/blob/master/.env/PHPStorm/settings.zip).
+Please find the `settings.zip` [here](https://github.com/event-engine/php-data/blob/master/.env/PHPStorm/settings.zip).
 
 ## Scalar Value Objects
 

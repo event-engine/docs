@@ -84,10 +84,17 @@ Learn more about read model storage set up in the projections chapter.
 {.alert .alert-warning}
 The **Multi-Model-Store** requires existing read model collections. Please find a detailed explanation in [the tutorial](/tutorial/partIII.html#2-4-2). 
 
-## Event Engine Descriptions
+## Descriptions
 
-Event Engine uses a "zero configuration" approach. While you have to configure integrated packages like *prooph/event-store*, Event Engine itself
-does not require centralized configuration. Instead it loads so called *Event Engine Descriptions*:
+Event Engine is bootstrapped in three phases. **Descriptions** are loaded first, followed by a `$eventEngine->initialize(/* dependencies */)` call.
+Finally, `$eventEngine->bootstrap($env, $debugMode)` prepares the system so that it can handle incoming messages.
+
+{.alert .alert-info}
+Bootstrapping is split because description and initialization phase can be skipped in production.
+Read more about this in [Production Optimization](/api/set_up/production_optimization.html).
+
+A "zero configuration" approach is used. While you have to configure integrated packages like *prooph/event-store*, Event Engine itself
+does not require centralized configuration. Instead it loads so called **Event Engine Descriptions**:
 
 ```php
 <?php
@@ -105,7 +112,7 @@ interface EventEngineDescription
 
 Any class implementing the interface can be loaded by Event Engine. The task of a *Description* is to tell Event Engine how the application is structured.
 This is done in a programmatic way using Event Engine's registration API which we will cover in the next chapter.
-Here is a simple example of a *Description* that registers a *command* in Event Engine.
+Here is a simple example of a **Description** that registers a command in Event Engine.
 
 ```php
 <?php
@@ -158,22 +165,13 @@ $eventEngine->load(App\Api\Command::class);
 {.alert .alert-light}
 Event Engine only requires a `EventEngine\Schema\Schema` implementation in the constructor. All other dependencies are passed during **initialize** phase (see next section).
 
-## Initialize & Bootstrap
-
-Event Engine is bootstrapped in three phases. **Descriptions** are loaded first, followed by a `$eventEngine->initialize(/* dependencies */)` call.
-Finally, `$eventEngine->bootstrap($env, $debugMode)` prepares the system so that it can handle incoming messages.
-
-{.alert .alert-info}
-Bootstrapping is split because description and initialization phase can be skipped in production.
-Read more about this in [Production Optimization](/api/set-up/production_optimization.html).
-
-### Initialize
+## Initialize
 
 Event Engine needs to aggregate information from all **Descriptions**.
 This is done in the *Initialize phase*. The phase also requires mandatory and optional dependencies used by Event Engine.
-Details are listed on the [Dependencies](/api/set-up/di.html) page.
+Details are listed on the [Dependencies](/api/set_up/di.html) page.
 
-### Bootstrap
+## Bootstrap
 
 Last, but not least `$eventEngine->bootstrap($environment, $debugMode)` starts the engine and we're ready to take off.
 Event Engine supports 3 different environments: `dev`, `prod` and `test`. The environment is mainly used to set up third-party components like a logger.

@@ -321,4 +321,13 @@
         color: #ee374b;
         text-decoration: underline;
     }
+
+    .list-toc > li:nth-child(2n+1) {
+        background: none;
+    }
+
+    .list-toc .list-group-item:hover {
+        background-color: rgba(0, 0, 0, 0.03);
+    }
+
 </style>
