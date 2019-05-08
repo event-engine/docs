@@ -71,10 +71,10 @@ final class EventSourcedAggregatePort implements Port
      * @param string $aggregateType
      * @param callable $aggregateFactory
      * @param $customCommand
-     * @param null|mixed $context
+     * @param array $contextServices
      * @return mixed Created aggregate
      */
-    public function callAggregateFactory(string $aggregateType, callable $aggregateFactory, $customCommand, $context = null)
+    public function callAggregateFactory(string $aggregateType, callable $aggregateFactory, $customCommand, ...$contextServices)
     {
         // TODO: Implement callAggregateFactory() method.
     }
@@ -82,9 +82,9 @@ final class EventSourcedAggregatePort implements Port
     /**
      * @param mixed $aggregate
      * @param mixed $customCommand
-     * @param null|mixed $context
+     * @param array $contextServices
      */
-    public function callAggregateWithCommand($aggregate, $customCommand, $context = null): void
+    public function callAggregateWithCommand($aggregate, $customCommand, ...$contextServices): void
     {
         // TODO: Implement callAggregateWithCommand() method.
     }
@@ -633,12 +633,12 @@ final class EventSourcedAggregatePort implements Port
      * @param string $aggregateType
      * @param callable $aggregateFactory
      * @param $customCommand
-     * @param null|mixed $context
+     * @param array $contextServices
      * @return mixed Created aggregate
      */
-    public function callAggregateFactory(string $aggregateType, callable $aggregateFactory, $customCommand, $context = null)
+    public function callAggregateFactory(string $aggregateType, callable $aggregateFactory, $customCommand, ...$contextServices)
     {
-        return $aggregateFactory($customCommand, $context);
+        return $aggregateFactory($customCommand, ...$contextServices);
     }
 
     /* ... */
@@ -683,9 +683,9 @@ class Aggregate implements EventEngineDescription
 ```
 
 {.alert .alert-warning}
-`$context` is not an argument of `Building::add()` but PHP does not care. We can use that to our advantage.
-The port does not need to know if an aggregate factory or command handling function is interested in a context or not.
-It just passes it always to the function. If context is `null` and the function doesn't care, everything is fine.
+`$contextServices` is not an argument of `Building::add()` but PHP does not care. We can use that to our advantage.
+The port does not need to know if an aggregate factory or command handling function is interested in a context or requires dependencies.
+It just passes it always to the function. If `$contextServices` is empty and the function doesn't care, everything is fine.
 
 ## Command Handling
 
@@ -695,15 +695,15 @@ It just passes it always to the function. If context is `null` and the function 
 /**
  * @param mixed $aggregate
  * @param mixed $customCommand
- * @param null|mixed $context
+ * @param array $contextServices
  */
-public function callAggregateWithCommand($aggregate, $customCommand, $context = null): void
+public function callAggregateWithCommand($aggregate, $customCommand, ...$contextServices): void
 {
     // TODO: Implement callAggregateWithCommand() method.
 }
 ```
 
-We get the `$aggregate` instance, a `$customCommand` and optionally a `$context`. We could use a `switch (command) -> call $aggregate->method` approach,
+We get the `$aggregate` instance, a `$customCommand` and optionally a list of `$contextServices`. We could use a `switch (command) -> call $aggregate->method` approach,
 but we are lazy. We don't want to touch the port each time we add a new command to the system. Conventions work great to get around the issue.
 
 **An aggregate root should have a method named like the command, whereby command name is derived from its class name without namespace. The first letter of the name is lowercase.**
@@ -728,13 +728,13 @@ final class EventSourcedAggregatePort implements Port
     /**
      * @param mixed $aggregate
      * @param mixed $customCommand
-     * @param null|mixed $context
+     * @param array $contextServices
      */
-    public function callAggregateWithCommand($aggregate, $customCommand, $context = null): void
+    public function callAggregateWithCommand($aggregate, $customCommand, ...$contextServices): void
     {
         $commandNameParts = \explode('\\', \get_class($customCommand));
         $handlingMethod = \lcfirst(\array_pop($commandNameParts));
-        $aggregate->{$handlingMethod}($customCommand, $context);
+        $aggregate->{$handlingMethod}($customCommand, ...$contextServices);
     }
 
     /* ... */
