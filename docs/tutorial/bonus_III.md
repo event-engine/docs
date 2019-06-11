@@ -1116,7 +1116,7 @@ class Aggregate implements EventEngineDescription
 
 ```
 
-Each `Building` command should have a `builidngId` property. Our newly created commands have `buildingId()` methods that we could call.
+Each `Building` command should have a `buildingId` property. Our newly created commands have `buildingId()` methods that we could call.
 An explicit implementation looks like this:
 
 ```php
