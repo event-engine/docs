@@ -19,7 +19,7 @@ robust implementation. That's very important for long-lived applications. Fortun
 One is called the **FunctionalFlavour** and the other one **OopFlavour**. Finally, you can implement your own `EventEngine\Runtime\Flavour`
 to turn Event Engine into your very own CQRS / ES framework.
 
-First let's look at the **FunctionalFlavour**. It's similar to what we did so fare, except that explicit message types are used instead of
+First let's look at the **FunctionalFlavour**. It's similar to what we did so far, except that explicit message types are used instead of
 generic Event Engine messages.
 
 ## Functional Port
