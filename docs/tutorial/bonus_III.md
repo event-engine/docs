@@ -956,7 +956,7 @@ class Query implements EventEngineDescription
             throw new \InvalidArgumentException("Unknown query name: $queryName");
         }
 
-        //Commands use ImmutableRecordLogic and therefor have a fromArray method
+        //Queries use ImmutableRecordLogic and therefor have a fromArray method
         return $class::fromArray($payload);
     }
 
