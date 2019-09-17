@@ -1039,7 +1039,7 @@ adds information like aggregate id, aggregate type, aggregate version, causation
 by default. If you want to add additional metadata, just pass it to the MessageBag constructor (optional argument).
 
 {.alert .alert-light}
-Decorating a custom event with a MessageBas has the advantage that a custom message can be carried through the Event Engine layer
+Decorating a custom event with a MessageBag has the advantage that a custom message can be carried through the Event Engine layer
 without serialization. Event Engine assumes a normal message and adds aggregate specific metadata like described above.
 The MessageBag is then passed back to the configured flavour to call a corresponding apply function. The flavour can access
 the decorated event and pass it to the function. All without serialization in between. A similar approach is used when commands
