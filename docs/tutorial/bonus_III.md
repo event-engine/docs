@@ -789,7 +789,7 @@ class Event implements EventEngineDescription
             throw new \InvalidArgumentException("Unknown event name: $eventName");
         }
 
-        //Commands use ImmutableRecordLogic and therefor have a fromArray method
+        //Events use ImmutableRecordLogic and therefor have a fromArray method
         return $class::fromArray($payload);
     }
 
