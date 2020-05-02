@@ -1,6 +1,6 @@
 # Part IV - Projections and Queries
 
-In part III of the tutorial we successfully implemented the first write model use case: *Add a new building*.
+In part III of the tutorial we implemented the first write model use case: *Add a new building*.
 Connect to the Postgres database and check the event stream table `_4228e4a00331b5d5e751db0481828e22a2c3c8ef`.
 The table should contain the first domain event yielded by the `Building` aggregate.
 
@@ -41,11 +41,18 @@ with id being the buildingId and doc being the JSON representation of the `Build
 {.alert .alert-light}
 Event Engine allows you to start with permanent snapshots and switch to async projections later by adjusting the configuration.
 
+## Cockpit
+
+With Event Engine Cockpit developers can inspect aggregates and view state and recorded events side by side.
+Reload the schema in Cockpit (refresh button in top menu) and inspect the building aggregate.
+
+![Inspect Aggregate](img/inspect_aggregate.gif)
+
 
 ## Query, Resolver and Return Type
 
 We already know that Event Engine uses JSON Schema to describe message types and define validation rules.
-For queries we can also register **return types** in Event Engine and those return types will appear in the **Model** section of the Swagger UI.
+For queries we can also register **return types** in Event Engine.
 
 Registering types is done in `src/Domain/Api/Type`.
 
@@ -335,8 +342,8 @@ class Query implements EventEngineDescription
 }
 
 ```
-Ok! We should be able to query buildings by buildingId now. Switch to Swagger and reload the schema (press the "explore" button).
-The Documentation Explorer should show a new Query:  `Building`.
+Ok! We should be able to query buildings by buildingId now. Switch to Cockpit and reload the schema.
+The query list should contain a new Query:  `Building`.
 If we send that query with the `buildingId` used in `AddBuilding`:
 
 ```json
@@ -466,7 +473,7 @@ final class BuildingResolver implements Resolver
             new LikeFilter('state.name', "%$nameFilter%")
             : new AnyFilter();
 
-        $cursor = $this->documentStore->filterDocs('buildings', $filter);
+        $cursor = $this->documentStore->findDocs('buildings', $filter);
 
         $buildings = [];
 
@@ -485,7 +492,7 @@ For the new `Buildings` query the resolver makes use of `DocumentStore\Filter`s.
 a SQL like expression using `%` as a placeholder. `AnyFilter` matches any documents in the collection.
 There are many more filters available. Read more about filters in the docs (@TODO: link docs).
 
-You can test the new query using Swagger. 
+You can test the new query using Cockpit.
 This is an example query with a name filter:
 
 ```json

@@ -1,14 +1,19 @@
 # Introduction
 
-Event Engine is a rapid application development (RAD) framework so let us jump directly into
-the practical part of the tutorial. Event Engine basic concepts will be explained throughout the tutorial.
+Event Engine is a rapid application development (RAD) framework. The basic concepts will be explained throughout the tutorial.
 Once finished, you should be able to start with your own project. The API docs will help you along the way.
 
 ## Tutorial Domain
 
-We will build a backend for a small application where you can register `buildings` and then `check in` and `check out`
+We're going to build a backend for a small web application where you can register `buildings` and then `check in` and `check out`
 users in the buildings. The backend will expose a messagebox endpoint that excepts commands and queries.
 Each time a user is `checked in` or `checked out` we get a notification via a websocket connection.
+
+![InspectIO Buildings Intro](img/inspectio_buildings_intro.png)
+
+{.alert .alert-info}
+The screenshot is taken from [InspectIO](https://github.com/event-engine/inspectio){: class="alert-link"} - a domain modelling tool for (remote) teams that supports living documentation.
+Event Engine users can request free access in the chat.
 
 {.alert .alert-light}
 *Credits: The tutorial domain is the same as the one used by Marco Pivetta in his CQRS and Event Sourcing Workshops.*
@@ -18,7 +23,7 @@ Each time a user is `checked in` or `checked out` we get a notification via a we
 Please make sure you have [Docker](https://docs.docker.com/engine/installation/ "Install Docker") and [Docker Compose](https://docs.docker.com/compose/install/ "Install Docker Compose") installed.
 
 {.alert .alert-warning}
-*Note: Docker is THE ONLY supported set up at the moment. If you don't want to install docker you need PHP 7.2+ and Postgres 9.4+.*
+*Note: Docker is THE ONLY supported set up at the moment. If you don't want to install docker you need PHP 7.4+ and Postgres 9.4+.*
 
 ### Clone Event Engine Skeleton
 
@@ -26,7 +31,7 @@ Change into your working directory and use `composer` to create a new project ba
 using `ee-buildings` as project name.
 
 ```bash
-$ docker run --rm -it -v $(pwd):/app prooph/composer:7.2 create-project event-engine/php-engine-skeleton ee-buildings
+$ docker run --rm -it -v $(pwd):/app prooph/composer:7.4 create-project event-engine/php-engine-skeleton ee-buildings
 ```
 
 Change into the newly created project dir `ee-buildings`, start the docker containers and run the set up script
@@ -50,7 +55,7 @@ host: localhost
 port: 5432
 dbname: event_engine
 user: postgres
-pwd: 
+pwd: dev
 ``` 
 
 {.alert .alert-info}
@@ -60,14 +65,14 @@ You should see three tables: `event_streams`, `projections` and `_<sha1>`. The l
 It will contain all `domain events`.
 
 #### Webserver
-Head over to `http://localhost:8080` to check if the containers are up and running.
-You should see a simple "It works" message.
+Head over to [https://localhost](https://localhost) to check if the containers are up and running.
+After accepting the self-signed certificate you should see a simple "It works" message.
 
-#### Swagger UI
-By default Event Engine exposes commands (we will learn more about them in a minute), events and queries via a message box endpoint.
-We can use [Swagger UI](https://swagger.io/swagger-ui/) to interact with the backend. 
+#### Event Engine Cockpit
+By default Event Engine exposes commands (we will learn more about them in a minute), events, and queries via a message box endpoint.
+We can use [Event Engine Cockpit](https://github.com/event-engine/cockpit) to interact with the backend.
 
-The Event Engine skeleton ships with a ready to use Swagger UI. Open [http://localhost:8080/swagger/index.html](http://localhost:8080/swagger/index.html)
+The Event Engine skeleton ships with a ready to use Cockpit configuration. Open [https://localhost:4444](https://localhost:4444)
 in your browser and try the built-in `HealthCheck` query.
 
 You should get a JSON response similar to that one:

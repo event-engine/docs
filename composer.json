@@ -30,11 +30,9 @@
   ],
   "require": {
     "php": "^7.2",
-    "roave/security-advisories": "dev-master",
     "bookdown/bookdown": "1.x-dev",
     "webuni/commonmark-table-extension": "^0.6.1",
-    "webuni/commonmark-attributes-extension": "^0.5.0",
-    "event-engine/php-engine": "dev-master"
+    "webuni/commonmark-attributes-extension": "^0.5.0"
   },
   "autoload": {
     "psr-4": {

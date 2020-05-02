@@ -248,7 +248,7 @@ final class BuildingResolver implements Resolver
             new LikeFilter(self::STATE_DOT . Payload::NAME, "%$nameFilter%")
             : new AnyFilter();
 
-        $cursor = $this->documentStore->filterDocs(self::COLLECTION, $filter);
+        $cursor = $this->documentStore->findDocs(self::COLLECTION, $filter);
 
         $buildings = [];
 

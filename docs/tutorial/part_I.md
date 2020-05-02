@@ -92,12 +92,14 @@ and Event Engine takes care of the rest.
 Event Engine Descriptions are very important. They are called at "**compile time**" and used to configure Event Engine.
 Descriptions can be cached to speed up bootstrapping. Find more information in the API docs **@TODO: link docs**.
 
-## Swagger Integration
+## Cockpit Integration
 
-Switch to the Swagger UI and reload the schema (press explore button).
-Swagger UI should show a new **command** called `AddBuilding` in the commands section.
+Switch to the Cockpit UI and reload the schema (press refresh button in top menu).
+Cockpit should show a new **command** called `AddBuilding` in the commands section.
 
-Click on the "Try it out" button and **execute** the `AddBuilding` command with this request body:
+{.alert .alert-light}
+Click on "commands" in the left sidebar and then on "Not Categorized" to see the command.
+**Send** the `AddBuilding` command with this payload:
 
 ```json
 {
@@ -119,13 +121,12 @@ Click on the "Try it out" button and **execute** the `AddBuilding` command with 
 
 Our command cannot be handled because a command handler is missing. In Event Engine
 commands can be routed directly to `Aggregates`.
-In **part II** of the the tutorial you'll learn more about pure aggregates.
+In **part II** you'll learn more about pure aggregates.
 
 {.alert .alert-success}
 Sum up: Event Engine Descriptions allow you to easily describe the API of your application using messages. The messages get
-a unique name and their payload is described with JSON Schema which allow us to add validation rules. The messages and their
-schema are translated to an OpenAPI v3 Schema and we can use Swagger UI to interact with the backend
-service.
+a unique name and payload is described with JSON Schema which allow us to add validation rules. The messages and their
+schema can be used by Event Engine Cockpit to interact with the backend service.
 
 
 

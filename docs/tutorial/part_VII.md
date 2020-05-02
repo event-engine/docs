@@ -2,7 +2,7 @@
 
 Developers tend to work out the happy path of a feature only and throw exceptions in every unknown situation.
 This behaviour is often caused by bad project management. Developers get domain knowledge from Jira tickets written by a product owner
-(Jira is used here as a synonym for any ticket system used in an agile process)
+(Jira is used here as a synonym for any ticket system)
 instead of talking to domain experts face-to-face. Most tickets don't include unhappy paths until they happen and find
 their way back to the developer as a bug ticket.
 
@@ -19,6 +19,12 @@ much simpler than scanning error logs.
 
 We've talked to the domain experts and they want us to notify security in case of a `DoubleCheckIn`. With Event Engine
 this is as simple as throwing an exception ;)
+
+![InspectIO Notify Security](img/notify_security.png)
+
+{.alert .alert-info}
+The screenshot is taken from [InspectIO](https://github.com/event-engine/inspectio){: class="alert-link"} - a domain modelling tool for (remote) teams that supports living documentation.
+Event Engine users can request free access in the chat.
 
 We need an event to record a `DoubleCheckIn`:
 
@@ -58,7 +64,7 @@ class Event implements EventEngineDescription
 
 ```
 
-Now that we have the event we can replace the exception and yield a `DoubleCheckInDetected` event instead:
+Now that we have the event we can replace the exception and yield a `DoubleCheckInDetected` event:
 
 ```php
 <?php
@@ -73,15 +79,7 @@ use EventEngine\Messaging\Message;
 
 final class Building
 {
-    public static function add(Message $addBuilding): \Generator
-    {
-        yield [Event::BUILDING_ADDED, $addBuilding->payload()];
-    }
-
-    public static function whenBuildingAdded(Message $buildingAdded): Building\State
-    {
-        return Building\State::fromArray($buildingAdded->payload());
-    }
+    /* ... */
 
     public static function checkInUser(Building\State $state, Message $checkInUser): \Generator
     {
@@ -93,10 +91,7 @@ final class Building
         yield [Event::USER_CHECKED_IN, $checkInUser->payload()];
     }
 
-    public static function whenUserCheckedIn(Building\State $state, Message $userCheckedIn): Building\State
-    {
-        return $state->withCheckedInUser($userCheckedIn->get(Payload::NAME));
-    }
+    /* ... */
 
     public static function whenDoubleCheckInDetected(Building\State $state, Message $event): Building\State
     {
@@ -106,8 +101,8 @@ final class Building
 }
 
 ```
-
-We need to tell Event Engine that `Building::checkInUser()` yields `DoubleCheckInDetected` in some situations:
+Event Engine requires an event apply function for each event type, even if state does not change and it needs to know
+that `Building::checkInUser()` yields `DoubleCheckInDetected` in some situations:
 
 ```php
 <?php
@@ -155,31 +150,27 @@ Try to check *John* in again:
 
 Instead of an error we get a 202 command accepted response.
 
-But when we look at the event stream (table `_4228e4a00331b5d5e751db0481828e22a2c3c8ef`) we see a `DoubleCheckInDetected` event.
+But when we look at the [aggregate details page](https://localhost:4444/#/aggregates/building/9ee8d8a8-3bd3-4425-acee-f6f08b8633bb) in Cockpit, we see a `DoubleCheckInDetected` event.
 
-no | event_id | event_name | payload | metadata | created_at
----|-----------|------------|--------|--------|---------
-1 | bce42506-...| BuildingAdded | {"buildingId":"9ee8d8a8-...","name":"Acme Headquarters"} | {"_aggregate_id": "9ee8d8a8-...", "_causation_id": "e482f5b8-...", "_aggregate_type": "Building", "_causation_name": "AddBuilding", "_aggregate_version": 1} | 2018-02-14 22:09:32.039848
-2 | 0ee8d2fb-...| UserCheckedIn | {"buildingId":"9ee8d8a8-...","name":"John"} | {"_aggregate_id": "9ee8d8a8-...", "_causation_id": "1ce0e46d-...", "_aggregate_type": "Building", "_causation_name": "CheckInUser", "_aggregate_version": 2} | 2018-02-16 21:37:55.131122
-3 | 4f6a8429-...| DoubleCheckInDetected | {"buildingId":"9ee8d8a8-...","name":"John"} | {"_aggregate_id": "9ee8d8a8-...", "_causation_id": "c347dd85-...", "_aggregate_type": "Building", "_causation_name": "CheckInUser", "_aggregate_version": 3} | 2018-02-16 23:03:59.739666
+![Cockpit double check in detected](img/double_check_in_detected.png)
 
 ## Process Manager
 
 To complete the user story we have to notify security. The security team uses a dedicated monitoring application that
 can receive arbitrary notification messages. To communicate with that external system we can use a so-called **process manager** or
 **policy**. Maybe you're more familiar with the term event listener but be careful to not mix it with event listeners known
-from web frameworks like Symfony or Zend. Listeners in Event Engine **react** to domain events and trigger follow up
+from web frameworks like Symfony or Laravel. Listeners in Event Engine **react** to domain events and trigger follow up
 commands for actions, like sending emails or interacting with external systems.
 
 We can simulate the security monitoring system with a small JS app shipped with the php-engine-skeleton.
-Open `http://localhost:8080/ws.html` in your browser.
+Open [http://localhost:8080/ws.html](http://localhost:8080/ws.html) in your browser.
 
 *Note: If the app shows a connection error then try to log into the rabbit mgmt console first: `https://localhost:8081`. Accept the self-signed certificate
 and login with usr: `prooph` pwd: `prooph`. If you're logged in switch back to `http://localhost:8080/ws.html` and reload the page.*
 
 If the app says `Status: Connected to websocket: ui-queue` it is ready to receive messages from Event Engine.
 
-In `src/System/SystemServices` you can find a factory method for a `MyService\System\UiExchange`.
+In `src/System/SystemServices` you can find a factory method for `MyService\System\UiExchange`.
 It's a default domain event listener shipped with the skeleton that can be used to push events on a *RabbitMQ ui-exchange*.
 The exchange is preconfigured (you can see that in the rabbit mgmt UI) and the JS app connects to a corresponding *ui-queue*.
 
@@ -233,9 +224,9 @@ The Event Engine API docs contain a lot more details.
 The prooph software team offers commercial project support and workshops for Event Engine and the prooph components.
 Our workshops include Event Storming sessions and guidance on how to turn the results into working prototypes using Event Engine.
 We can also show and discuss framework integrations. Event Engine can easily be integrated with *Symfony*, *Laravel* and
-other PHP web frameworks. The skeleton is based on *Zend Strategility* so you can handle http related tasks, like authentication,
+other PHP web frameworks. The skeleton is based on *Laminas Strategility* so you can handle http related tasks, like authentication,
 using *PSR-15* middleware. But again, other web frameworks play nicely with Event Engine!
 
 [![prooph software](https://github.com/codeliner/php-ddd-cargo-sample/raw/master/docs/assets/prooph-software-logo.png)](http://prooph.de)
 
-If you are interested please [get in touch](http://getprooph.org/#get-in-touch)!
+If you are interested please [get in touch](http://prooph.de)!

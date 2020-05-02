@@ -14,7 +14,7 @@ in greater detail later, but first we want to see a **pure aggregate function** 
 because normally a command is handled by a command handler (comparable to an application service that handles a domain action)
 and the command handler would load a business entity or "DDD" aggregate from a repository. We still use the aggregate concept but make
 use of a functional programming approach. It keeps the domain model lean and testable and allows some nice
-optimizations for a RAD infrastructure.
+optimizations for RAD infrastructure.
 
 Let's add the first aggregate called `Building` in a new `Model` folder:
 
@@ -54,7 +54,7 @@ Domain events are the second message type used by Event Engine. The domain model
 all state changes in a series of domain events. These domain events are yielded by aggregate methods and stored in an event store
 managed by Event Engine. The series of events can then be used to calculate the current state of an aggregate.
 We will see that in action in a later part of the tutorial and get a better understanding of the technique
-when we add more use cases to the application.
+when we add more use cases.
 
 For now let's add the first domain event in `src/Domain/Api/Event`:
 
@@ -131,7 +131,7 @@ event name and payload and stores it in the event stream.
 
 ## Aggregate Description
 
-If we switch back to the Swagger UI and send the `AddBuilding` command again, Event Engine still
+If we switch back to Cockpit and send the `AddBuilding` command again, Event Engine still
 complains about a missing command handler. We need to tell Event Engine about our new aggregate and that it is
 responsible for handling `AddBuilding` commands. We can do this in another Event Engine Description in `src/Domain/Api/Aggregate`.
 
@@ -175,7 +175,7 @@ every event yielded by the aggregate should contain this property
 which can be analyzed by modern IDEs like PHPStorm for auto completion and refactorings.
 - `recordThat` tells Event Engine which event is yielded by the aggregate's command handling method.
 
-If we try again to send `AddBuilding` we get a new error:
+If we try again to send `AddBuilding` (or reload the schema in Cockpit) we get a new error:
 
 ```json
 {

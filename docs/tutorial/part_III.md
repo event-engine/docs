@@ -9,7 +9,7 @@ according to its own lifecycle. Without its current state and without informatio
 only execute business logic and enforce business rules based on the given information of the current command passed to a handling function.
 In most cases this is not enough.
 
-The functional programming solution to that problem is to pass the current state (which is computed from the past events recorded by the aggregate)
+The functional programming solution to that problem is to pass the current state (which is computed from past events)
 to each command handling function (except the one handling the first command). This means that aggregate **behaviour** (command handling functions)
 and aggregate **state** (a data structure of a certain type) are two different things and separated from each other.
 How this is implemented in Event Engine is shown in this part of the tutorial.
@@ -51,7 +51,7 @@ as an argument (next when* function will receive one!).
 
 But what does the `State` object look like? Well, you can use whatever you want. Event Engine does not care about a particular
 implementation (see docs for details). However, Event Engine ships with a default implementation of an `ImmutableRecord`.
-We use that implementation in the tutorial, but it is your choice if you want to use it in your application, too.
+We use that implementation in the tutorial, but it is your choice if you want to use it, too.
 
 Create a `State` class in `src/Domain/Model/Building` (new directory):
 
@@ -179,7 +179,7 @@ class Aggregate implements EventEngineDescription
 }
 
 ```
-We're done with the write model for the first use case. If you send the `AddBuilding` command again using Swagger UI:
+We're done with the write model for the first use case. If you send the `AddBuilding` command again using Cockpit:
 
 ```json
 {

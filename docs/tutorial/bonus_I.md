@@ -9,7 +9,13 @@ Before we implement that feature you're asked to implement the *check out user* 
 Add a command `CheckOutUser` and an event `UserCheckedOut`. Let the `Building` aggregate and `Building\State` handle the command
 and make sure that `DoubleCheckOutDetected` can also be monitored using the monitoring UI.
 
-Does it work? Great!
+![InspectIO Double Check Out](img/double_check_out_detected.png)
+
+{.alert .alert-info}
+The screenshot is taken from [InspectIO](https://github.com/event-engine/inspectio){: class="alert-link"} - a domain modelling tool for (remote) teams that supports living documentation.
+Event Engine users can request free access in the chat.
+
+**Does it work? Great!**
 
 ## Implement a Projector
 
@@ -163,9 +169,6 @@ class Projection implements EventEngineDescription
     public static function describe(EventEngine $eventEngine): void
     {
         $eventEngine->watch(Stream::ofWriteModel())
-            ->withAggregateProjection(Aggregate::BUILDING);
-
-        $eventEngine->watch(Stream::ofWriteModel())
             ->with(self::USER_BUILDING_LIST, UserBuildingList::class)
             ->filterEvents([
                 Event::USER_CHECKED_IN,
@@ -207,7 +210,7 @@ and start it with:
 docker-compose up -d
 ```
 
-If you look at the Postgres DB you should see a new table called `building_list_0_1_0` with one row:
+If you look at the Postgres DB you should see a new table called `user_building_list_0_1_0` with one row:
 
 id | doc
 ---|---
@@ -215,7 +218,7 @@ John | {"buildingId": "9ee8d8a8-3bd3-4425-acee-f6f08b8633bb"}
 
 {.alert .alert-warning}
 If the table is empty make sure that you've checked in John. If that's the case, your projection might have a problem. Check the troubleshooting section
-of the skeleton README.
+of the skeleton [README](https://github.com/event-engine/php-engine-skeleton#troubleshooting).
 
 {.alert .alert-info}
 The **write-model-projection** is a single long-running php process. It polls the event store for new events and forwards them to Event Engine. 
@@ -466,7 +469,7 @@ class Query implements EventEngineDescription
 }
 
 ```
-*Swagger - UserBuilding query*
+*Cockpit - UserBuilding query*
 ```json
 {
   "name": "John"

@@ -308,8 +308,7 @@ The following command should check in *John* into the *Acme Headquarters*.
 }
 ```
 
-Looks good! And what does the response of the `Buildings` query look now? If you inspect the schema of the query
-and click on the `Building` return type you'll notice the new property `users`. 
+Looks good! And what does the response of the `Buildings` query look now?
 
 ```json
 {

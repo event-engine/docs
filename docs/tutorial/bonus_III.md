@@ -150,7 +150,7 @@ An Event Engine message is passed as argument and the method should return a cus
 The good news is, every technique can be used! It just needs to be implemented in the Port.
 
 To keep the tutorial simple, we're going to use the tools shipped with Event Engine.
-That said, our messages become `ImmutableRecord`s and use the build-in serialization technique provided by `ImmutableRecordLogic`.
+That said, our messages become `ImmutableRecord`s and use the built-in serialization technique provided by `ImmutableRecordLogic`.
 
 {.alert .alert-warning}
 The fact that messages are still coupled with the framework is not important here. It's our decision as developers to do it, but nothing required by Event Engine.
@@ -437,7 +437,7 @@ final class CheckOutUser implements ImmutableRecord
 ```
 
 Ok, much more classes now. Each property has its own value object like `BuildingId`, `BuildingName` and `Username`. Again, that's not a requirement but it adds type safety to
-the implementation and serves as documentation. Don't worry about the amount of code. Most of it can be generated using PHPStorm templates. Event Engine docs contain useful tips (@TODO add docs link).
+the implementation and serves as documentation. Don't worry about the amount of code. Most of it can be generated using PHPStorm templates. Event Engine docs contain useful [tips](https://event-engine.io/api/immutable_state.html#3-4).
 Another possibility is the already mentioned library [FPP](https://github.com/prolic/fpp).
 
 With the value objects in place we've added a class for each command and implemented them as immutable records. Now we need a factory to instantiate a command with information
@@ -922,7 +922,7 @@ use MyService\Domain\Resolver\Query\GetBuilding;
 use MyService\Domain\Resolver\Query\GetBuildings;
 use MyService\Domain\Resolver\Query\GetUserBuildingList;
 use MyService\Domain\Resolver\UserBuildingResolver;
-use MyService\System\Api\SystemType;
+use MyService\System\Api\SystemQuery;
 
 class Query implements EventEngineDescription
 {
@@ -942,9 +942,9 @@ class Query implements EventEngineDescription
 
     public static function createFromNameAndPayload(string $queryName, array $payload)
     {
-        if($queryName === self::HEALTH_CHECK) {
+        if($queryName === SystemQuery::HEALTH_CHECK) {
             return new MessageBag(
-                self::HEALTH_CHECK,
+                SystemQuery::HEALTH_CHECK,
                 MessageBag::TYPE_QUERY,
                 []
             );
@@ -1452,7 +1452,7 @@ final class BuildingResolver implements Resolver
             new LikeFilter(self::STATE_DOT . Payload::NAME, "%$nameFilter%")
             : new AnyFilter();
 
-        $cursor = $this->documentStore->filterDocs(self::COLLECTION, $filter);
+        $cursor = $this->documentStore->findDocs(self::COLLECTION, $filter);
 
         $buildings = [];
 
@@ -1587,14 +1587,7 @@ use Psr\Log\LoggerInterface;
 
 trait SystemServices
 {
-    public function systemDescriptions(): array
-    {
-        return [
-            SystemType::class,
-            SystemQuery::class,
-            EventEngineConfig::class,
-        ];
-    }
+    /* ... */
 
     public function flavour(): Flavour
     {
@@ -1603,73 +1596,7 @@ trait SystemServices
         });
     }
 
-    public function healthCheckResolver(): HealthCheckResolver
-    {
-        return $this->makeSingleton(HealthCheckResolver::class, function () {
-            return new HealthCheckResolver();
-        });
-    }
-
-    public function logger(): LoggerInterface
-    {
-        return $this->makeSingleton(LoggerInterface::class, function () {
-            $streamHandler = new StreamHandler('php://stderr');
-
-            return new Logger('EventEngine', [$streamHandler]);
-        });
-    }
-
-    public function logEngine(): LogEngine
-    {
-        return new SimpleMessageEngine($this->logger());
-    }
-
-    public function uiExchange(): UiExchange
-    {
-        return $this->makeSingleton(UiExchange::class, function () {
-            $this->assertMandatoryConfigExists('rabbit.connection');
-
-            $connection = new \Humus\Amqp\Driver\AmqpExtension\Connection(
-                $this->config()->arrayValue('rabbit.connection')
-            );
-
-            $connection->connect();
-
-            $channel = $connection->newChannel();
-
-            $exchange = $channel->newExchange();
-
-            $exchange->setName($this->config()->stringValue('rabbit.ui_exchange', 'ui-exchange'));
-
-            $exchange->setType('fanout');
-
-            $humusProducer = new \Humus\Amqp\JsonProducer($exchange);
-
-            $messageProducer = new \Prooph\ServiceBus\Message\HumusAmqp\AmqpMessageProducer(
-                $humusProducer,
-                new NoOpMessageConverter()
-            );
-
-            return new class($messageProducer) implements UiExchange {
-                private $producer;
-                public function __construct(AmqpMessageProducer $messageProducer)
-                {
-                    $this->producer = $messageProducer;
-                }
-
-                public function __invoke(Message $event): void
-                {
-                    $this->producer->__invoke(GenericProophEvent::fromArray([
-                        'uuid' => $event->uuid()->toString(),
-                        'message_name' => $event->messageName(),
-                        'payload' => $event->payload(),
-                        'metadata' => $event->metadata(),
-                        'created_at' => $event->createdAt()
-                    ]));
-                }
-            };
-        });
-    }
+    /* ... */
 }
 
 ```
@@ -1938,7 +1865,7 @@ final class UserBuildingList implements CustomEventProjector
 
 ```
 
-The `UiExchange` event listener included in the skeleton application needs to b aligned, too.
+The `UiExchange` event listener included in the skeleton application needs to be aligned, too.
 First, the corresponding interface should handle any type of event:
 
 `src/System/UiExchange.php`
@@ -2054,7 +1981,7 @@ trait SystemServices
 
 ```
 
-That's it! You can use the [Swagger UI](http://localhost:8080/swagger/index.html#/) to test changes.
+That's it! You can use [Cockpit](https://localhost:4444) to test the changes.
 
 Or wait! We did not run the tests!
 
@@ -2062,7 +1989,7 @@ Or wait! We did not run the tests!
 docker-compose run php php vendor/bin/phpunit
 ```
 
-Doesn't look good, right? Let's fix them!
+Doesn't look good, right? Let's fix it!
 
 `TestCaseAbstract::assertRecordedEvent()` method need to be aligned:
 
@@ -2150,7 +2077,7 @@ final class NotifySecurityTest extends IntegrationTestCase
 
     private $uiExchange;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -2260,7 +2187,7 @@ final class BuildingTest extends UnitTestCase
     private $buildingName;
     private $username;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $this->buildingId = Uuid::uuid4()->toString();
         $this->buildingName = 'Acme Headquarters';
@@ -2333,7 +2260,7 @@ final class UserBuildingListTest extends UnitTestCase
      */
     private $projector;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -2366,7 +2293,7 @@ final class UserBuildingListTest extends UnitTestCase
             $johnCheckedIn
         );
 
-        $users = iterator_to_array($this->documentStore->filterDocs(
+        $users = iterator_to_array($this->documentStore->findDocs(
             $collection,
             new AnyFilter()
         ));
@@ -2386,7 +2313,7 @@ final class UserBuildingListTest extends UnitTestCase
             $janeCheckedIn
         );
 
-        $users = iterator_to_array($this->documentStore->filterDocs(
+        $users = iterator_to_array($this->documentStore->findDocs(
             $collection,
             new AnyFilter()
         ));
@@ -2407,7 +2334,7 @@ final class UserBuildingListTest extends UnitTestCase
             $johnCheckedOut
         );
 
-        $users = iterator_to_array($this->documentStore->filterDocs(
+        $users = iterator_to_array($this->documentStore->findDocs(
             $collection,
             new AnyFilter()
         ));
@@ -2422,7 +2349,7 @@ final class UserBuildingListTest extends UnitTestCase
 
 {.alert .alert-success}
 **Tests are green again. Refactoring finished successfully. Was it worth the effort?**
-Switching the Flavour is quite some workt to do, isn't it? Depending on the amount of already written code and tests this task can take some days and you need to make sure
+Switching the Flavour is quite some work to do, isn't it? Depending on the amount of already written code and tests this task can take some days and you need to make sure
 that you don't break existing functionality. On the other hand you get a fully decoupled domain model.
 Of course, it's also possible to use another Flavour right from the beginning. But keep in mind, that the PrototypingFlavour saves a lot of time in the early days
 of a project. You don't know if the first app version really meets business and user needs. You can only try and experiment. The faster you have a working
