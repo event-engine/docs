@@ -265,7 +265,7 @@ class Type implements EventEngineDescription
      */
     public static function describe(EventEngine $eventEngine): void
     {
-        $eventEngine->registerType(Aggregate::BUILDING, Building\State::__schema());
+        $eventEngine->registerType(Aggregate::BUILDING, self::building());
 
         $eventEngine->registerType(self::USER_BUILDING, self::userBuilding()); //<-- type registration
     }
