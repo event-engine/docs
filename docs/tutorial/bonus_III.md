@@ -437,7 +437,7 @@ final class CheckOutUser implements ImmutableRecord
 ```
 
 Ok, much more classes now. Each property has its own value object like `BuildingId`, `BuildingName` and `Username`. Again, that's not a requirement but it adds type safety to
-the implementation and serves as documentation. Don't worry about the amount of code. Most of it can be generated using PHPStorm templates. Event Engine docs contain useful [tips](https://event-engine.io/api/immutable_state.html#3-4).
+the implementation and serves as documentation. Don't worry about the amount of code. Most of it can be generated using PHPStorm templates. Event Engine docs contain useful [tips](https://event-engine.github.io/api/immutable_state.html#3-4).
 Another possibility is the already mentioned library [FPP](https://github.com/prolic/fpp).
 
 With the value objects in place we've added a class for each command and implemented them as immutable records. Now we need a factory to instantiate a command with information

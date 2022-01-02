@@ -21,4 +21,4 @@
 <meta name="twitter:site" content="@prooph_software">
 <meta name="twitter:title" content="Event Engine">
 <meta name="twitter:description" content="Rapid CQRS / ES framework for PHP with a path to refactor towards a richer domain model as needed.">
-<meta name="twitter:image" content="https://event-engine.io/img/Event_Engine_intro.png">
+<meta name="twitter:image" content="https://event-engine.github.io/img/Event_Engine_intro.png">

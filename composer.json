@@ -1,7 +1,7 @@
 {
   "name": "event-engine/docs",
   "description": "Opinionated CQRS / Event Sourcing Framework",
-  "homepage": "https://event-engine.io/",
+  "homepage": "https://event-engine.github.io/",
   "license": "BSD-3-Clause",
   "authors": [
     {

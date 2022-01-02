@@ -4,7 +4,7 @@
 *Written by Alexander Miertsch ([@codeliner](https://github.com/codeliner)) - CEO prooph software GmbH - prooph core team - 2019-04-05*
 
 Three weeks ago we've released the [first dev version of Event Engine](https://github.com/event-engine/php-engine/releases/tag/v0.1.0), which supersedes Event Machine.
-Now we reached another important milestone towards a stable release. Make sure to check out the brand new Event Engine tutorial: [https://event-engine.io/tutorial/](https://event-engine.io/tutorial/)
+Now we reached another important milestone towards a stable release. Make sure to check out the brand new Event Engine tutorial: [https://event-engine.github.io/tutorial/](https://event-engine.github.io/tutorial/)
 along with a new [skeleton application](https://github.com/event-engine/php-engine-skeleton).
 
 ## Repo Split
@@ -25,7 +25,7 @@ At the time of writing, many API docs are still outdated. You'll find a warning 
 ## Immutable Objects
 
 We've added new documentation about how to quickly generate immutable objects using PHPStorm templates and the `event-engine/php-data` package.
-[Learn more](https://event-engine.io/api/immutable_state.html)
+[Learn more](https://event-engine.github.io/api/immutable_state.html)
 
 ## Keep Up-To-Date
 

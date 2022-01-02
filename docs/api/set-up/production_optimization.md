@@ -3,7 +3,7 @@
 Event Engine boots in three phases: **description phase, initializing phase, bootstrapping phase**.
 
 {.alert .alert-light}
-Learn more about the [three phases](https://event-engine.io/api/set_up/installation.html#3-1-1-3).
+Learn more about the [three phases](https://event-engine.github.io/api/set_up/installation.html#3-1-1-3).
 
 To speed up the process you can skip the first two phases in production. This page explains how it works.
 
